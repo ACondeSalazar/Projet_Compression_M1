@@ -3,6 +3,7 @@
 #include <vector>
 #include <fstream>
 #include "Utils.h"
+#include "RLE.h"
 
 
 //Transformation de couleurs
@@ -206,6 +207,27 @@ void compression(char * cNomImgLue){
     printf("  Fini\n");
 
     printf("Codage RLE");
+
+    std::vector<std::vector<int>> BlocksRLEEncoded;
+
+    for(Block & block : blocks){// pour chaque bloc : on fait la DCT, on quantifie le résultat de la DCT et on applatit la matrice de DCT
+        std::vector<std::vector<int>> RLEBlock;
+
+        RLECompression(block.flatDctMatrix,RLEBlock);
+
+        BlocksRLEEncoded.insert(BlocksRLEEncoded.end(), RLEBlock.begin(), RLEBlock.end());
+    }
+
+    // Print BlocksRLEEncoded
+    printf("BlocksRLEEncoded:\n");
+    for (const auto& rleBlock : BlocksRLEEncoded) {
+        for (int val : rleBlock) {
+            printf("%d ", val);
+        }
+        //printf("|");
+    }
+
+    
 
 
     printf("  Fini\n");
