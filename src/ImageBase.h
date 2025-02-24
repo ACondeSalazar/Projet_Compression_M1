@@ -3,7 +3,7 @@
 *
 * Fichier : ImageBase.h
 *
-* Description : Classe contennant quelques fonctionnalités de base
+* Description : Classe contennant quelques fonctionnalitï¿½s de base
 *
 * Auteur : Mickael Pinto
 *

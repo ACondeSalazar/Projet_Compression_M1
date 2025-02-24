@@ -2,7 +2,7 @@
 #include <vector>
 #include "Utils.h"
 
-void RLECompression(std::vector<int> & flattenedBlock, std::vector<std::vector<int>> & RLEBlock){
+void RLECompression(std::vector<int> & flattenedBlock, std::vector<std::pair<int,int>> & RLEBlock){
     RLEBlock.clear();
     int currentValue = flattenedBlock[0];
     int counterValue = 1;

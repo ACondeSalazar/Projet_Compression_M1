@@ -80,7 +80,7 @@ void ImageBase::load(char *filename)
 
 	if(l <= 4) // Le fichier ne peut pas etre que ".pgm" ou ".ppm"
 	{
-		printf("Chargement de l'image impossible : Le nom de fichier n'est pas conforme, il doit comporter l'extension, et celle ci ne peut être que '.pgm' ou '.ppm'");
+		printf("Chargement de l'image impossible : Le nom de fichier n'est pas conforme, il doit comporter l'extension, et celle ci ne peut ï¿½tre que '.pgm' ou '.ppm'");
 		exit(0);
 	}
 
@@ -108,7 +108,7 @@ void ImageBase::load(char *filename)
 	}
 	else 
 	{
-		printf("Chargement de l'image impossible : Le nom de fichier n'est pas conforme, il doit comporter l'extension, et celle ci ne peut être que .pgm ou .ppm");
+		printf("Chargement de l'image impossible : Le nom de fichier n'est pas conforme, il doit comporter l'extension, et celle ci ne peut ï¿½tre que .pgm ou .ppm");
 		exit(0);
 	}
 	

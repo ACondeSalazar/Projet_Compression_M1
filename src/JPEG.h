@@ -4,6 +4,8 @@
 #include <fstream>
 #include "Utils.h"
 #include "RLE.h"
+#include "Huffman.h"
+#include <unordered_map>
 
 
 //Transformation de couleurs
@@ -126,7 +128,7 @@ void quantification (Block & block){
 
 //fonction qui regroupe tout 
 
-void compression(char * cNomImgLue){
+void compression( char * cNomImgLue,  char * cNomImgOut){
 
     printf("Opening image : %s\n", cNomImgLue);
 
@@ -208,10 +210,10 @@ void compression(char * cNomImgLue){
 
     printf("Codage RLE");
 
-    std::vector<std::vector<int>> BlocksRLEEncoded;
+    std::vector<std::pair<int,int>> BlocksRLEEncoded;
 
     for(Block & block : blocks){// pour chaque bloc : on fait la DCT, on quantifie le résultat de la DCT et on applatit la matrice de DCT
-        std::vector<std::vector<int>> RLEBlock;
+        std::vector<std::pair<int,int>> RLEBlock;
 
         RLECompression(block.flatDctMatrix,RLEBlock);
 
@@ -219,18 +221,86 @@ void compression(char * cNomImgLue){
     }
 
     // Print BlocksRLEEncoded
-    printf("BlocksRLEEncoded:\n");
+    printf(" BlocksRLEEncoded:\n");
     for (const auto& rleBlock : BlocksRLEEncoded) {
-        for (int val : rleBlock) {
-            printf("%d ", val);
-        }
+        printf("(%d, %d),", rleBlock.first, rleBlock.second);
         //printf("|");
     }
 
-    
-
 
     printf("  Fini\n");
+
+    printf("Huffman encoding ");
+
+    std::vector<huffmanCodeSingle> codeTable;
+
+    HuffmanEncoding(BlocksRLEEncoded, codeTable);
+
+    for (const auto& code : codeTable) {
+        cout << "RLE Pair: (" << code.rlePair.first << ", " << code.rlePair.second << "), Code: "; 
+        for (int i = code.length - 1; i >= 0; --i) {
+            cout << ((code.code >> i) & 1); //obligé de ce truc horrible pour print le code en binaire
+        }
+        cout << ", Length: " << code.length << endl;
+    }
+
+    unordered_map<pair<int, int>, huffmanCodeSingle, pair_hash> codeMap;
+        for (const auto& code : codeTable) {
+            codeMap[code.rlePair] = code;
+        }
+
+        printf("RLE Blocks encoded binary : \n");
+        for (const auto& pair : BlocksRLEEncoded) {
+            huffmanCodeSingle code = codeMap[pair];
+            for (int i = code.length - 1; i >= 0; --i) {
+                cout << ((code.code >> i) & 1);
+            }
+            cout << " ";
+        }
+
+        /* printf("\n");
+        for (const auto& pair : BlocksRLEEncoded) {
+            printf("(%d, %d) ", pair.first, pair.second);
+        }
+        printf("\n"); */
+
+    printf("  Fini\n");
+
+    std::string outFileName = cNomImgOut;
+    writeHuffmanEncoded(BlocksRLEEncoded, codeTable, outFileName);
+
+
+    //decompression ----------------------
+    BlocksRLEEncoded.clear();
+    codeTable.clear();
+    readHuffmanEncoded(outFileName, codeTable, BlocksRLEEncoded );
+
+    printf("Huffman decoded binary :      \n");
+    for (const auto& pair : BlocksRLEEncoded) {
+        huffmanCodeSingle code = codeMap[pair];
+        for (int i = code.length - 1; i >= 0; --i) {
+            cout << ((code.code >> i) & 1);
+        }
+        cout << " ";
+    }
+
+    /* printf("\n");
+    for (const auto& pair : BlocksRLEEncoded) {
+        printf("(%d, %d) ", pair.first, pair.second);
+    }
+    printf("\n");
+    
+    for (const auto& code : codeTable) {
+        cout << "RLE Pair: (" << code.rlePair.first << ", " << code.rlePair.second << "), Code: "; 
+        for (int i = code.length - 1; i >= 0; --i) {
+            cout << ((code.code >> i) & 1); //obligé de ce truc horrible pour print le code en binaire
+        }
+        cout << ", Length: " << code.length << endl;
+    } */
+
+}
+
+void decompression(const char * cNomImgIn, const char * cNomImgOut){
     
 
 }

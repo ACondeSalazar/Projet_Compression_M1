@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 
 
@@ -13,17 +12,21 @@
 
 int main(int argc, char **argv)
 {
-    char cNomImgLue[250];
-    if (argc < 2)
+    std::string cNomImgLue;
+    std::string cNomImgOut;
+    if (argc < 3)
     {
-        printf("Usage: filename \n");
+        printf("Usage: fileIn fileOut \n");
         return 1;
     }
-    sscanf(argv[1], "%s", cNomImgLue);
+    cNomImgLue = argv[1];
+    cNomImgOut = argv[2];
 
-    compression(cNomImgLue);
+    compression(cNomImgLue.data(), cNomImgOut.data());
 
+    std::string fileDecomp = "./decompressed.ppm";
 
+    decompression(cNomImgOut.c_str(), fileDecomp.c_str());
    
 
     
