@@ -22,3 +22,13 @@ void RLECompression(std::vector<int> & flattenedBlock, std::vector<std::pair<int
     }
     
 }
+
+void RLEDecompression(std::vector<std::pair<int,int>> & RLEBlock, std::vector<int> & flatdctMatrix){
+    flatdctMatrix.clear();
+
+    for(auto & pair : RLEBlock){
+        for(int i= 0; i<pair.first; i++){
+            flatdctMatrix.push_back(pair.second);
+        }
+    }
+}

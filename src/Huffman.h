@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iostream>
 #include <bitset>
+#include <stdint.h>
 
 
 using namespace std;
@@ -14,12 +15,14 @@ using namespace std;
 //permet d'utiliser des std::pair comme clés d'une unordered_map
 struct pair_hash {
     template <class T1, class T2>
-    std::size_t operator () (const std::pair<T1,T2> &p) const {
+    std::size_t operator () (const std::pair<T1, T2>& p) const {
         auto h1 = std::hash<T1>{}(p.first);
         auto h2 = std::hash<T2>{}(p.second);
-        return h1 ^ h2; //pas terrible comme fonction de hashage
+        
+        return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
     }
 };
+
 
 struct TreeNode {
 
@@ -146,48 +149,80 @@ void HuffmanEncoding(vector<pair<int,int>> & RLEData, vector<huffmanCodeSingle> 
 
 }
 
-void writeHuffmanEncoded(vector<pair<int, int>>& RLEData, vector<huffmanCodeSingle>& codeTable, const string& filename) {
-    // Create an output file stream to write the data
+void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
+                         vector<huffmanCodeSingle>& codeTable,
+                         int width, int height,
+                         const string& filename) {
     ofstream outFile(filename, ios::binary);
-
     if (!outFile) {
-        cerr << "Error opening file for writing!" << endl;
+        cerr << "Error opening file for writing huffman encoded data!" << endl;
         return;
     }
 
-    // 1. Write the size of the code table (how many unique codes we have)
-    int tableSize = codeTable.size();
+    //on ecrit la taille de l'image
+    outFile.write(reinterpret_cast<const char*>(&width), sizeof(width));
+    outFile.write(reinterpret_cast<const char*>(&height), sizeof(height));
+    
+    //on ecrit la taille de la table
+    int tableSize = static_cast<int>(codeTable.size());
     outFile.write(reinterpret_cast<const char*>(&tableSize), sizeof(tableSize));
-
-    // 2. Write the Huffman code table (pixel value -> Huffman code, code length)
+    
+    //on ecrit les codes présents dans la table
     for (const auto& entry : codeTable) {
-        // Write the pixel value and its frequency (RLEPair)
         outFile.write(reinterpret_cast<const char*>(&entry.rlePair), sizeof(entry.rlePair));
-
-        // Write the Huffman code and its length
         outFile.write(reinterpret_cast<const char*>(&entry.code), sizeof(entry.code));
         outFile.write(reinterpret_cast<const char*>(&entry.length), sizeof(entry.length));
     }
-
-    // 3. Write the RLE data (pixel value -> frequency pair)
+    
+    //on ecrit le nombre de RLE
+    int numRLE = static_cast<int>(RLEData.size());
+    outFile.write(reinterpret_cast<const char*>(&numRLE), sizeof(numRLE));
+    
+    //on ecrit les données RLE encodées
+    uint8_t bitBuffer = 0;
+    int bitsInBuffer = 0;
+    
+    //ChatGPT, permet de lire un seul bit a la fois
+    auto flushBuffer = [&]() {
+        if (bitsInBuffer > 0) {
+            // Shift left to pad with zeros on the right.
+            bitBuffer <<= (8 - bitsInBuffer);
+            outFile.write(reinterpret_cast<const char*>(&bitBuffer), 1);
+            bitBuffer = 0;
+            bitsInBuffer = 0;
+        }
+    };
+    
     for (const auto& rle : RLEData) {
-        // Find the Huffman code corresponding to the pixel value
         bool found = false;
         for (const auto& entry : codeTable) {
-            if (entry.rlePair.second == rle.second) { // Match pixel value
-                // Write the Huffman code and its length
-                outFile.write(reinterpret_cast<const char*>(&entry.code), sizeof(entry.code));
-                outFile.write(reinterpret_cast<const char*>(&entry.length), sizeof(entry.length));
+            // Match on both frequency and pixel value.
+            if (entry.rlePair.first == rle.first && entry.rlePair.second == rle.second) {
+                int code = entry.code;
+                int length = entry.length;
+                // Write bits from the code, starting with the most significant bit.
+                for (int i = length - 1; i >= 0; i--) {
+                    int bit = (code >> i) & 1;
+                    bitBuffer = (bitBuffer << 1) | bit;
+                    bitsInBuffer++;
+                    if (bitsInBuffer == 8) {
+                        outFile.write(reinterpret_cast<const char*>(&bitBuffer), 1);
+                        bitBuffer = 0;
+                        bitsInBuffer = 0;
+                    }
+                }
                 found = true;
                 break;
             }
         }
-
         if (!found) {
-            cerr << "Error: No Huffman code found for pixel value " << rle.second << endl; // Notice rle.second for the pixel value
+            cerr << "Error: No Huffman code found for RLE pair ("
+                 << rle.first << ", " << rle.second << ")" << endl;
         }
     }
 
+    flushBuffer();
+    
     outFile.close();
 }
 
@@ -195,57 +230,79 @@ void writeHuffmanEncoded(vector<pair<int, int>>& RLEData, vector<huffmanCodeSing
 
 
 
-void readHuffmanEncoded(const string& filename, vector<huffmanCodeSingle>& codeTable, vector<pair<int, int>>& RLEData) {
-    // Create an input file stream to read the data
+void readHuffmanEncoded(const string& filename,
+                        vector<huffmanCodeSingle>& codeTable,
+                        vector<pair<int, int>>& RLEData,
+                        int & width, int & height) {
     ifstream inFile(filename, ios::binary);
-
     if (!inFile) {
         cerr << "Error opening file for reading!" << endl;
         return;
     }
 
-    // 1. Read the size of the code table
+    //On lit la taille de l'image
+    inFile.read(reinterpret_cast<char*>(&width), sizeof(width));
+    inFile.read(reinterpret_cast<char*>(&height), sizeof(height));
+    
+    //On lit la taille de la table
     int tableSize = 0;
     inFile.read(reinterpret_cast<char*>(&tableSize), sizeof(tableSize));
-
-    // 2. Read the Huffman code table
-    codeTable.clear(); // Clear any existing data in the table
-    for (int i = 0; i < tableSize; ++i) {
+    
+    //On remplit la table
+    codeTable.clear();
+    for (int i = 0; i < tableSize; i++) {
         huffmanCodeSingle entry;
-        
-        // Read the rlePair (frequency, pixel value)
         inFile.read(reinterpret_cast<char*>(&entry.rlePair), sizeof(entry.rlePair));
-
-        // Read the Huffman code and its length
         inFile.read(reinterpret_cast<char*>(&entry.code), sizeof(entry.code));
         inFile.read(reinterpret_cast<char*>(&entry.length), sizeof(entry.length));
-
-        // Add the entry to the codeTable
         codeTable.push_back(entry);
     }
-
-    // 3. Read the RLE data from the file
-    RLEData.clear(); // Clear any existing RLE data
-    while (inFile.peek() != EOF) {
-        int code = 0, length = 0;
-        inFile.read(reinterpret_cast<char*>(&code), sizeof(code));
-        inFile.read(reinterpret_cast<char*>(&length), sizeof(length));
-
-        // Find the corresponding pixel value and frequency from the codeTable
-        bool found = false;
-        for (const auto& entry : codeTable) {
-            if (entry.code == code && entry.length == length) {
-                // Match the code and length, add the RLE pair
-                RLEData.push_back(entry.rlePair);
-                found = true;
-                break;
+    
+    //On lit le nombre de RLE
+    int numRLE = 0;
+    inFile.read(reinterpret_cast<char*>(&numRLE), sizeof(numRLE));
+    
+    //on lit bit par bit
+    RLEData.clear();
+    uint8_t byte = 0;
+    int bitsLeft = 0; // Bits left in the current byte.
+    
+    //chatGPT, permet de lire un seul bit a la fois
+    auto readBit = [&]() -> int {
+        if (bitsLeft == 0) {
+            if (!inFile.read(reinterpret_cast<char*>(&byte), 1)) {
+                return -1; // End of file.
+            }
+            bitsLeft = 8;
+        }
+        int bit = (byte >> (bitsLeft - 1)) & 1;
+        bitsLeft--;
+        return bit;
+    };
+    
+    // For each RLE entry, accumulate bits until a matching code is found.
+    while (static_cast<int>(RLEData.size()) < numRLE) {
+        int currentCode = 0;
+        int currentLength = 0;
+        bool matched = false;
+        while (!matched) {
+            int bit = readBit();
+            if (bit == -1) {
+                cerr << "Unexpected end of file during bit decoding." << endl;
+                return;
+            }
+            currentCode = (currentCode << 1) | bit;
+            currentLength++;
+            // Check if the accumulated bits match any code in the code table.
+            for (const auto& entry : codeTable) {
+                if (entry.length == currentLength && entry.code == currentCode) {
+                    RLEData.push_back(entry.rlePair);
+                    matched = true;
+                    break;
+                }
             }
         }
-
-        if (!found) {
-            cerr << "Error: No matching Huffman code found for the encoded data!" << endl;
-        }
     }
-
+    
     inFile.close();
 }

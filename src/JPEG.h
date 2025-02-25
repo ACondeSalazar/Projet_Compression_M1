@@ -94,6 +94,32 @@ std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8){
     return blocks;
 }
 
+
+//reconstruction de l'image à partir des blocs
+void reconstructImage(std::vector<Block> & blocks, ImageBase & imIn, int blocksize = 8){
+
+    for(int i = 0; i < imIn.getHeight(); i+=blocksize){
+        for(int j = 0; j < imIn.getWidth(); j+=blocksize){
+
+            Block block = blocks[i/blocksize * (imIn.getWidth() / blocksize) + j/blocksize];
+
+            for(int k = 0; k < blocksize; k++){
+                for(int l = 0; l < blocksize; l++){
+                    if (block.data[k][l] < 0) { //la valeur peut être négative on la seuille pour éviter des erreurs lors du cast en uchar dans l'image
+                        block.data[k][l] = 0;
+                    } else if (block.data[k][l] > 255) {
+                        //n'est pas censé arriver
+                        block.data[k][l] = 255;
+                    }
+                    imIn[i + k][j + l] = block.data[k][l];
+                }
+            }
+
+        }
+    }
+
+}
+
 //Transformée cosinus discrete dans le fichier Utils.h
 
 
@@ -110,11 +136,32 @@ std::vector<std::vector<int>> quantificationMatrix = {
     {33, 37, 41, 45, 49, 53, 57, 61}
 };
 
+std::vector<std::vector<int>> quantificationMatrix2 = {
+    {3, 5, 7, 9, 10, 12, 15, 17},
+    {5, 7, 9, 10, 12, 15, 17, 18},
+    {7, 9, 10, 12, 15, 17, 18, 20},
+    {9, 10, 12, 15, 17, 18, 20, 22},
+    {10, 12, 15, 17, 18, 20, 22, 24},
+    {12, 15, 17, 18, 20, 22, 24, 26},
+    {15, 17, 18, 20, 22, 24, 26, 28},
+    {17, 18, 20, 22, 24, 26, 28, 30}
+};
+
 void quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
             block.dctMatrix[i][j] = block.dctMatrix[i][j] / quantificationMatrix[i][j];
+        
+        }
+    }
+}
+
+void inverse_quantification (Block & block){
+    for (int i = 0; i < block.dctMatrix.size(); i++){
+        for (int j = 0; j < block.dctMatrix[0].size(); j++){
+
+            block.dctMatrix[i][j] = block.dctMatrix[i][j] * quantificationMatrix[i][j];
         
         }
     }
@@ -128,11 +175,10 @@ void quantification (Block & block){
 
 //fonction qui regroupe tout 
 
-void compression( char * cNomImgLue,  char * cNomImgOut){
+void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 
     printf("Opening image : %s\n", cNomImgLue);
 
-    ImageBase imIn;
     imIn.load(cNomImgLue);
 
     
@@ -179,7 +225,7 @@ void compression( char * cNomImgLue,  char * cNomImgOut){
     printf("  Fini\n");
 
     // Print block 0
-    printf("Block 0:\n");
+    /* printf("Block 0:\n");
     for (int i = 0; i < blocks[0].data.size(); i++) {
         for (int j = 0; j < blocks[0].data[0].size(); j++) {
             //blocks[0].data[i][j] = 255;
@@ -187,7 +233,7 @@ void compression( char * cNomImgLue,  char * cNomImgOut){
             
         }
         printf("\n");
-    }
+    } */
 
     //DCT
     printf("DCT et quantification ");
@@ -199,11 +245,11 @@ void compression( char * cNomImgLue,  char * cNomImgOut){
     }
 
     // Print block flatDctMatrix
-    printf("Block 0 flatDctMatrix:\n");
+    /* printf("Block 0 flatDctMatrix:\n");
     for (int i = 0; i < blocks[0].flatDctMatrix.size(); i++) {
         printf("%d ", blocks[0].flatDctMatrix[i]);
     }
-    printf("\n");
+    printf("\n"); */
 
 
     printf("  Fini\n");
@@ -221,11 +267,11 @@ void compression( char * cNomImgLue,  char * cNomImgOut){
     }
 
     // Print BlocksRLEEncoded
-    printf(" BlocksRLEEncoded:\n");
+    /* printf(" BlocksRLEEncoded:\n");
     for (const auto& rleBlock : BlocksRLEEncoded) {
         printf("(%d, %d),", rleBlock.first, rleBlock.second);
         //printf("|");
-    }
+    } */
 
 
     printf("  Fini\n");
@@ -236,15 +282,15 @@ void compression( char * cNomImgLue,  char * cNomImgOut){
 
     HuffmanEncoding(BlocksRLEEncoded, codeTable);
 
-    for (const auto& code : codeTable) {
+    /* for (const auto& code : codeTable) {
         cout << "RLE Pair: (" << code.rlePair.first << ", " << code.rlePair.second << "), Code: "; 
         for (int i = code.length - 1; i >= 0; --i) {
             cout << ((code.code >> i) & 1); //obligé de ce truc horrible pour print le code en binaire
         }
         cout << ", Length: " << code.length << endl;
-    }
+    } */
 
-    unordered_map<pair<int, int>, huffmanCodeSingle, pair_hash> codeMap;
+    /* unordered_map<pair<int, int>, huffmanCodeSingle, pair_hash> codeMap;
         for (const auto& code : codeTable) {
             codeMap[code.rlePair] = code;
         }
@@ -256,7 +302,7 @@ void compression( char * cNomImgLue,  char * cNomImgOut){
                 cout << ((code.code >> i) & 1);
             }
             cout << " ";
-        }
+        } */
 
         /* printf("\n");
         for (const auto& pair : BlocksRLEEncoded) {
@@ -267,40 +313,88 @@ void compression( char * cNomImgLue,  char * cNomImgOut){
     printf("  Fini\n");
 
     std::string outFileName = cNomImgOut;
-    writeHuffmanEncoded(BlocksRLEEncoded, codeTable, outFileName);
+    writeHuffmanEncoded(BlocksRLEEncoded, codeTable,imIn.getWidth(), imIn.getHeight(),outFileName);
 
 
     //decompression ----------------------
-    BlocksRLEEncoded.clear();
-    codeTable.clear();
-    readHuffmanEncoded(outFileName, codeTable, BlocksRLEEncoded );
-
-    printf("Huffman decoded binary :      \n");
-    for (const auto& pair : BlocksRLEEncoded) {
-        huffmanCodeSingle code = codeMap[pair];
-        for (int i = code.length - 1; i >= 0; --i) {
-            cout << ((code.code >> i) & 1);
-        }
-        cout << " ";
-    }
-
-    /* printf("\n");
-    for (const auto& pair : BlocksRLEEncoded) {
-        printf("(%d, %d) ", pair.first, pair.second);
-    }
-    printf("\n");
+    //BlocksRLEEncoded.clear();
+    //codeTable.clear();
     
-    for (const auto& code : codeTable) {
-        cout << "RLE Pair: (" << code.rlePair.first << ", " << code.rlePair.second << "), Code: "; 
-        for (int i = code.length - 1; i >= 0; --i) {
-            cout << ((code.code >> i) & 1); //obligé de ce truc horrible pour print le code en binaire
-        }
-        cout << ", Length: " << code.length << endl;
-    } */
+
+    
 
 }
 
-void decompression(const char * cNomImgIn, const char * cNomImgOut){
+void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase & imOut){
     
+    printf("Decompression\n");
+
+    std::string outFileName = cNomImgIn;
+    std::vector<huffmanCodeSingle> codeTable;
+    std::vector<std::pair<int, int>> BlocksRLEEncoded;
+
+    int imageWidth, imageHeight;
+
+    printf("Reading huffman encoded file\n");
+
+    readHuffmanEncoded(outFileName, codeTable, BlocksRLEEncoded, imageWidth, imageHeight);
+
+    /* unordered_map<pair<int, int>, huffmanCodeSingle, pair_hash> codeMap;
+        for (const auto& code : codeTable) {
+            codeMap[code.rlePair] = code;
+        }
+
+        printf("RLE Blocks encoded binary : \n");
+        for (const auto& pair : BlocksRLEEncoded) {
+            huffmanCodeSingle code = codeMap[pair];
+            for (int i = code.length - 1; i >= 0; --i) {
+                cout << ((code.code >> i) & 1);
+            }
+            cout << " ";
+        } */
+
+    printf("Blocks decoding\n");
+
+    int currentRLEIndex = 0;
+    int currentBlockProgress = 0;
+    std::vector<Block> blocks;
+
+    
+    while(currentRLEIndex < BlocksRLEEncoded.size()){
+        Block currentBlock(8);
+        std::vector<std::pair<int,int>> currentBlockRLE;
+
+        //tant que on a pas fini le bloc on lit des RLE
+        while(currentBlockProgress < 64){
+            currentBlockRLE.push_back(BlocksRLEEncoded[currentRLEIndex]);
+            currentBlockProgress += BlocksRLEEncoded[currentRLEIndex].first;
+            currentRLEIndex++;
+        }
+ 
+
+        //on inverse les operations de la compression
+
+        RLEDecompression(currentBlockRLE, currentBlock.flatDctMatrix);
+
+        unflattenZigZag(currentBlock);
+
+        inverse_quantification(currentBlock);
+
+        IDCT(currentBlock);
+
+        blocks.push_back(currentBlock);
+        currentBlockProgress = 0;
+    }
+
+    printf("Reconstructing image from blocks\n");
+
+
+    //ImageBase imOut(512, 480, false);
+
+    imOut = ImageBase(imageWidth, imageHeight, false);
+
+    reconstructImage(blocks, imOut);
+
+    imOut.save("./decompressed.ppm");
 
 }
