@@ -23,22 +23,29 @@ int main(int argc, char **argv)
     cNomImgLue = argv[1];
     cNomImgOut = argv[2];
 
-    ImageBase imIn;
+    ImageBase  imIn;
+
+    imIn.load(cNomImgLue.data());
 
     compression(cNomImgLue.data(), cNomImgOut.data(), imIn);
 
-    ImageBase imOut;
+    ImageBase * imOut;
 
-    std::string fileDecomp = "./decompressed.ppm";
+    std::string fileDecomp = "./img/out/decompressed.ppm";
 
     decompression(cNomImgOut.c_str(), fileDecomp.c_str(), imOut);
-    
-    ImageBase imY;
-    imY.load("./img/out/Y.pgm");
 
-    printf("PSNR : %f\n", PSNR(imY, imOut));
+    printf("Decompression fini\n");
 
-    
+    ImageBase imOut2;
+    imOut2.load(fileDecomp.data());
+
+    float psnr = PSNR(imIn, imOut2);
+
+    printf("PSNR : %f\n", psnr);
+
+    //free(imIn);
+    free(imOut);
 
     return 0;
 }

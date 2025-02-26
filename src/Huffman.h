@@ -96,7 +96,7 @@ struct huffmanCodeSingle{
 
 };
 
-void getEncodingRecursive(TreeNode* node, int code, int length, vector<huffmanCodeSingle>& encodingList) {
+void getEncodingRecursive(TreeNode* node, int code, int length, vector<huffmanCodeSingle>& codeTable) {
     if (node == nullptr) {
         return;
     }
@@ -108,11 +108,11 @@ void getEncodingRecursive(TreeNode* node, int code, int length, vector<huffmanCo
         newCode.code = code;
         newCode.length = length;
 
-        encodingList.push_back(newCode);
+        codeTable.push_back(newCode);
     }
 
-    getEncodingRecursive(node->left, (code << 1), length + 1, encodingList); // (code << 1) décalage de 1 bit pour rajouter un 0
-    getEncodingRecursive(node->right, (code << 1) | 1, length + 1, encodingList); // (code << 1) | 1 decalage de 1 bit et ajoute 1 a la fin 
+    getEncodingRecursive(node->left, (code << 1), length + 1, codeTable); // (code << 1) décalage de 1 bit pour rajouter un 0
+    getEncodingRecursive(node->right, (code << 1) | 1, length + 1, codeTable); // (code << 1) | 1 decalage de 1 bit et ajoute 1 a la fin 
 }
 
 
@@ -151,7 +151,8 @@ void HuffmanEncoding(vector<pair<int,int>> & RLEData, vector<huffmanCodeSingle> 
 
 void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
                          vector<huffmanCodeSingle>& codeTable,
-                         int width, int height,
+                         int width, int height, int downSampledWidth, int downSampledHeight,
+                         int channelYSize, int channelCbSize, int channelCrSize,
                          const string& filename) {
     ofstream outFile(filename, ios::binary);
     if (!outFile) {
@@ -162,6 +163,12 @@ void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
     //on ecrit la taille de l'image
     outFile.write(reinterpret_cast<const char*>(&width), sizeof(width));
     outFile.write(reinterpret_cast<const char*>(&height), sizeof(height));
+    outFile.write(reinterpret_cast<const char*>(&downSampledWidth), sizeof(downSampledWidth));
+    outFile.write(reinterpret_cast<const char*>(&downSampledHeight), sizeof(downSampledHeight));
+
+    outFile.write(reinterpret_cast<const char*>(&channelYSize), sizeof(channelYSize)); //le nombre de pair RLE (fréquence,pixel) pour le canal Y
+    outFile.write(reinterpret_cast<const char*>(&channelCbSize), sizeof(channelCbSize)); //pareil pour les canaux Cb et Cr
+    outFile.write(reinterpret_cast<const char*>(&channelCrSize), sizeof(channelCrSize));
     
     //on ecrit la taille de la table
     int tableSize = static_cast<int>(codeTable.size());
@@ -233,7 +240,8 @@ void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
 void readHuffmanEncoded(const string& filename,
                         vector<huffmanCodeSingle>& codeTable,
                         vector<pair<int, int>>& RLEData,
-                        int & width, int & height) {
+                        int & width, int & height, int & downSampledWidth, int & downSampledHeight,
+                        int & channelYSize, int & channelCbSize, int & channelCrSize) {
     ifstream inFile(filename, ios::binary);
     if (!inFile) {
         cerr << "Error opening file for reading!" << endl;
@@ -243,6 +251,13 @@ void readHuffmanEncoded(const string& filename,
     //On lit la taille de l'image
     inFile.read(reinterpret_cast<char*>(&width), sizeof(width));
     inFile.read(reinterpret_cast<char*>(&height), sizeof(height));
+    inFile.read(reinterpret_cast<char*>(&downSampledWidth), sizeof(downSampledWidth));
+    inFile.read(reinterpret_cast<char*>(&downSampledHeight), sizeof(downSampledHeight));
+
+    //on lit la taille des canaux (encodés en RLE)
+    inFile.read(reinterpret_cast<char*>(&channelYSize), sizeof(channelYSize));
+    inFile.read(reinterpret_cast<char*>(&channelCbSize), sizeof(channelCbSize));
+    inFile.read(reinterpret_cast<char*>(&channelCrSize), sizeof(channelCrSize));
     
     //On lit la taille de la table
     int tableSize = 0;
