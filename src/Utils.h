@@ -43,13 +43,16 @@ void DCT(Block & block){
 
 
     int N = block.data.size();
+
+    double mul = PI / (2 * N); // petite optimisation
+
     for (int u = 0; u < N; u++){
         for (int v = 0; v < N; v++){ //pour chaque fréquence
             double sum = 0;
             for (int x = 0; x < N; x++){
                 for (int y = 0; y < N; y++){
 
-                    sum += block.data[x][y] * cos((2 * x + 1) * u * PI / (2 * N)) * cos((2 * y + 1) * v * PI / (2 * N));
+                    sum += block.data[x][y] * cos((2 * x + 1) * u * mul) * cos((2 * y + 1) * v * mul);
                 
                 }
             }
@@ -64,6 +67,10 @@ void IDCT(Block & block) {
     double PI = 3.14159265358979323846;
     
     int N = block.dctMatrix.size();
+
+    double mul = PI / (2 * N); // petite optimisation
+
+
     for (int x = 0; x < N; x++) {
         for (int y = 0; y < N; y++) { // reconstruct pixel values
             double sum = 0;
@@ -72,7 +79,7 @@ void IDCT(Block & block) {
                     double Cu = (u == 0) ? 1 / sqrt(2) : 1;
                     double Cv = (v == 0) ? 1 / sqrt(2) : 1;
                     
-                    sum += Cu * Cv * block.dctMatrix[u][v] * cos((2 * x + 1) * u * PI / (2 * N)) * cos((2 * y + 1) * v * PI / (2 * N));
+                    sum += Cu * Cv * block.dctMatrix[u][v] * cos((2 * x + 1) * u * mul) * cos((2 * y + 1) * v * mul);
                 }
             }
             block.data[x][y] = 0.25 * sum;
@@ -120,4 +127,47 @@ float PSNR(ImageBase & im1, ImageBase & im2){
     }
     mse /= (im1.getHeight() * im1.getWidth() * 3);
     return 10 * log10(pow(255, 2) / mse);
+}
+
+
+void gaussianBlur(ImageBase &imIn, ImageBase &imOut) {
+    int width = imIn.getWidth();
+    int height = imIn.getHeight();
+
+    // Filtre gaussien 3x3 (sigma ≈ 1)
+    std::vector<std::vector<int>> kernel = {
+        {1, 2, 1},
+        {2, 4, 2},
+        {1, 2, 1}
+    };
+
+    int kernelSum = 16; // Somme du noyau gaussien
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            int sum = 0;
+
+            if(i == 0 || j == 0 || i == height - 1 || j == width -1){
+                imOut[i][j] = imIn[i][j];
+                continue;
+            }
+
+            for (int ki = -1; ki <= 1; ki++) {
+                for (int kj = -1; kj <= 1; kj++) {
+                    sum += imIn[i + ki][j + kj] * kernel[ki + 1][kj + 1];
+                }
+            }
+
+            imOut[i][j] = sum / kernelSum;
+        }
+    }
+}
+
+long getFileSize(const std::string& filePath) {
+    std::ifstream file(filePath, std::ios::binary | std::ios::ate); 
+    if (!file) {
+        printf("Erreur d'ouverture du fichier");
+        return -1;
+    }
+    return file.tellg();
 }

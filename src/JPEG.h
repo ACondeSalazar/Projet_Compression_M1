@@ -53,7 +53,7 @@ void YCbCr_to_RGB(ImageBase & imY, ImageBase & imCb, ImageBase & imCr, ImageBase
 
 //Sous échantillonage d'une image, faut trouver un meilleur algo
 //imout doit être de largeur Imin.width / 2 et de hauteur Imin.height / 2
-void down_sampling(ImageBase & imIn, ImageBase & imOut){
+void down_sampling(ImageBase & imIn, ImageBase & imOut){ // filtre moyenneur
 
     std::vector<std::vector<int>> kernel = {
         {1, 1},
@@ -85,6 +85,44 @@ void down_sampling(ImageBase & imIn, ImageBase & imOut){
 
 };
 
+//cette fonction fait un sous-échantillonnage avec interpolation bilinéaire
+//Devrait etre meilleur que la fonction de base
+void down_sampling_bilinear(ImageBase &imIn, ImageBase &imOut) {
+    int newWidth = imOut.getWidth();
+    int newHeight = imOut.getHeight();
+    int oldWidth = imIn.getWidth();
+    int oldHeight = imIn.getHeight();
+
+    for (int i = 0; i < newHeight; i++) {
+        for (int j = 0; j < newWidth; j++) {
+
+            // Coordonnees image originale
+            float x = j * (oldWidth - 1) / (float)(newWidth - 1);
+            float y = i * (oldHeight - 1) / (float)(newHeight - 1);
+
+            int x1 = (int) x;
+            int y1 = (int) y;
+            int x2 = std::min(x1 + 1, oldWidth - 1);
+            int y2 = std::min(y1 + 1, oldHeight - 1);
+
+            
+            float dx = x - x1;
+            float dy = y - y1;
+
+            // Interpolation bilineaire
+            float val = (1 - dx) * (1 - dy) * imIn[y1][x1] +
+                        dx * (1 - dy) * imIn[y1][x2] +
+                        (1 - dx) * dy * imIn[y2][x1] +
+                        dx * dy * imIn[y2][x2];
+
+            imOut[i][j] = (int) std::round(val);
+        }
+    }
+}
+
+
+
+
 void up_sampling(ImageBase & imIn, ImageBase & imOut){
 
     for (int i = 0; i < imOut.getHeight(); i++) {
@@ -100,18 +138,27 @@ void up_sampling(ImageBase & imIn, ImageBase & imOut){
 
 
 //peut mener a des erreurs d'acces memoire si la taille de l'image n'est pas un multiple de blockSize
-std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8){
-
+//problème reglé cette fonction marche peu importe la taille
+std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8) {
     std::vector<Block> blocks;
+    int height = imIn.getHeight();
+    int width = imIn.getWidth();
 
-    for(int i = 0; i < imIn.getHeight(); i+=blockSize){
-        for(int j = 0; j < imIn.getWidth(); j+=blockSize){
-
+    for (int i = 0; i < height; i += blockSize) {
+        for (int j = 0; j < width; j += blockSize) {
             Block block(blockSize);
 
-            for(int k = 0; k < blockSize; k++){
-                for(int l = 0; l < blockSize; l++){
-                    block.data[k][l] = imIn[i + k][j + l];
+            for (int k = 0; k < blockSize; k++) {
+                for (int l = 0; l < blockSize; l++) {
+
+                    int x = i + k;
+                    int y = j + l;
+
+                    if (x < height && y < width) {
+                        block.data[k][l] = imIn[x][y];
+                    } else {
+                        block.data[k][l] = 0;  // Remplissage avec 0
+                    }
                 }
             }
 
@@ -166,9 +213,9 @@ std::vector<std::vector<int>> quantificationMatrix = {
 };
 
 std::vector<std::vector<int>> quantificationMatrix2 = {
-    {3, 5, 7, 9, 10, 12, 15, 17},
-    {5, 7, 9, 10, 12, 15, 17, 18},
-    {7, 9, 10, 12, 15, 17, 18, 20},
+    {1, 3, 5, 9, 10, 12, 15, 17},
+    {3, 5, 9, 10, 12, 15, 17, 18},
+    {5, 9, 10, 12, 15, 17, 18, 20},
     {9, 10, 12, 15, 17, 18, 20, 22},
     {10, 12, 15, 17, 18, 20, 22, 24},
     {12, 15, 17, 18, 20, 22, 24, 26},
@@ -176,11 +223,34 @@ std::vector<std::vector<int>> quantificationMatrix2 = {
     {17, 18, 20, 22, 24, 26, 28, 30}
 };
 
+std::vector<std::vector<int>> quantificationMatrix3 = {
+    {2, 3, 4, 6, 7, 9, 11, 13},
+    {3, 4, 6, 7, 9, 11, 13, 14},
+    {4, 6, 7, 9, 11, 13, 14, 16},
+    {6, 7, 9, 11, 13, 14, 16, 18},
+    {7, 9, 11, 13, 14, 16, 18, 20},
+    {9, 11, 13, 14, 16, 18*2, 20*2, 22*2},
+    {11, 13, 14, 16, 18, 20*2, 22*2, 24*2},
+    {13, 14, 16, 18, 20, 22*2, 24*2, 26*2}
+};
+
+
+std::vector<std::vector<int>> quantificationMatrix_test = {
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 99, 99, 99, 99},
+    {1, 1, 1, 1, 99, 99, 99, 99},
+    {1, 1, 1, 1, 99, 99, 99, 99},
+    {1, 1, 1, 1, 99, 99, 99, 99}
+};
+
 void quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
-            block.dctMatrix[i][j] = block.dctMatrix[i][j] / quantificationMatrix[i][j];
+            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] / quantificationMatrix3[i][j];
         
         }
     }
@@ -190,13 +260,11 @@ void inverse_quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
-            block.dctMatrix[i][j] = block.dctMatrix[i][j] * quantificationMatrix[i][j];
+            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] * quantificationMatrix3[i][j];
         
         }
     }
 }
-
-
 
 
 
@@ -226,14 +294,23 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     imCr.save("./img/out/Cr.pgm");
 
     printf("  Fini\n");
-
     //Sous échantillonage
-    printf("Sous échantillonage de Cb et Cr");
-    ImageBase downSampledCb(imIn.getWidth() / 2, imIn.getHeight() / 2, false);
-    ImageBase downSampledCr(imIn.getWidth() / 2, imIn.getHeight() / 2, false);
+    printf("Sous échantillonage de Cb et Cr \n");
 
-    down_sampling(imCb, downSampledCb);
-    down_sampling(imCr, downSampledCr);
+    printf("Flou Gaussien sur Cr et Cb");
+    ImageBase imCbFlou(imIn.getWidth(), imIn.getHeight(), false);
+    ImageBase imCrFlou(imIn.getWidth(), imIn.getHeight(), false);
+
+    gaussianBlur(imCb,imCbFlou); //fonction dans Utils.h
+    gaussianBlur(imCr,imCrFlou);
+
+
+    ImageBase downSampledCb(imIn.getWidth() / 2, imIn.getHeight() /2, false);
+    ImageBase downSampledCr(imIn.getWidth() / 2, imIn.getHeight() /2, false);
+
+
+    down_sampling_bilinear(imCbFlou, downSampledCb);
+    down_sampling_bilinear(imCrFlou, downSampledCr);
 
     downSampledCb.save("./img/out/downSampledCb.pgm");
     downSampledCr.save("./img/out/downSampledCr.pgm");
@@ -392,7 +469,7 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     writeHuffmanEncoded(allBlocksRLE, codeTable,
                         imIn.getWidth(), imIn.getHeight(), downSampledCb.getWidth(), downSampledCb.getHeight() ,
                         blocksYRLE.size(), blocksCbRLE.size(),blocksCrRLE.size(),
-                        outFileName);    
+                        outFileName);
 
 }
 

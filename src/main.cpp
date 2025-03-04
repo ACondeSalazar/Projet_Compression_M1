@@ -29,23 +29,34 @@ int main(int argc, char **argv)
 
     compression(cNomImgLue.data(), cNomImgOut.data(), imIn);
 
-    ImageBase * imOut;
+    printf("compression finie \n ================================================ \n");
 
+    long sizeImin = getFileSize(cNomImgLue); //fontion dans Utils.h
+    long sizeComp = getFileSize(cNomImgOut);
+    double taux = (double)sizeImin/(double)sizeComp;
+
+    printf("taux de compression : %f \n",taux);
+
+
+    printf("debut décompression \n ================================================ \n");
+
+    ImageBase * imOut;
     std::string fileDecomp = "./img/out/decompressed.ppm";
 
     decompression(cNomImgOut.c_str(), fileDecomp.c_str(), imOut);
 
-    printf("Decompression fini\n");
+    printf("Decompression fini\n\n");
 
     ImageBase imOut2;
     imOut2.load(fileDecomp.data());
 
     float psnr = PSNR(imIn, imOut2);
 
-    printf("PSNR : %f\n", psnr);
+    printf("PSNR : %f\n", psnr , "Db");
+    printf("taux de compression : %f \n",taux);
 
     //free(imIn);
-    free(imOut);
+    //free(imOut);
 
     return 0;
 }
