@@ -7,6 +7,11 @@
 #include "Huffman.h"
 #include <unordered_map>
 
+//pour debug 
+std::vector<std::pair<int,int>> rlecompression;
+
+std::vector<std::pair<int,int>> rledecompression;
+
 
 //Transformation de couleurs
 
@@ -176,9 +181,14 @@ std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8) {
 //reconstruction de l'image en niveau de gris à partir des blocs 
 void reconstructImage(std::vector<Block> & blocks, ImageBase & imIn, int blocksize = 8){
 
+<<<<<<< HEAD
     int height = imIn.getHeight();
     int width = imIn.getWidth();
     float bls = 1.0/(float)blocksize;
+=======
+    for(int i = 0; i < imIn.getHeight() ; i+=blocksize){
+        for(int j = 0; j < imIn.getWidth() ; j+=blocksize){
+>>>>>>> 335dfd0 (fixed rle encoding on some images)
 
     for(int i = 0; i < height; i += blocksize){
         for(int j = 0; j < width; j += blocksize){
@@ -189,9 +199,10 @@ void reconstructImage(std::vector<Block> & blocks, ImageBase & imIn, int blocksi
                 for(int l = 0; l < blocksize; l++){
                     if (block.data[k][l] < 0) { //la valeur peut être négative on la seuille pour éviter des erreurs lors du cast en uchar dans l'image
                         block.data[k][l] = 0;
+                        //std::cout << " aie "<< std::endl;
                     } else if (block.data[k][l] > 255) {
-                        //n'est jamais arrivé dans les test mais on sait jamais
                         block.data[k][l] = 255;
+                        //std::cout << "houla" << std::endl;
                     }
                     imIn[i + k][j + l] = block.data[k][l];
                 }
@@ -256,7 +267,11 @@ void quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
+<<<<<<< HEAD
             block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] / quantificationMatrix2[i][j];
+=======
+            block.dctMatrix[i][j] = (int)(block.dctMatrix[i][j] / quantificationMatrix2[i][j]);
+>>>>>>> 335dfd0 (fixed rle encoding on some images)
         
         }
     }
@@ -266,7 +281,11 @@ void inverse_quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
+<<<<<<< HEAD
             block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] * quantificationMatrix2[i][j];
+=======
+            block.dctMatrix[i][j] = (int)(block.dctMatrix[i][j] * quantificationMatrix2[i][j]);
+>>>>>>> 335dfd0 (fixed rle encoding on some images)
         
         }
     }
@@ -387,6 +406,9 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     printf("Codage RLE \n");
 
     std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
+    
+
+    
     std::vector<std::pair<int,int>> blocksCbRLE;
     std::vector<std::pair<int,int>> blocksCrRLE;
 
@@ -397,6 +419,15 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 
         blocksYRLE.insert(blocksYRLE.end(), RLEBlock.begin(), RLEBlock.end());
     }
+
+    rlecompression = blocksYRLE;
+
+    std::cout << "blocksY RLE size : " << blocksYRLE.size() << std::endl; 
+
+    for (int i = std::max(0, static_cast<int>(blocksYRLE.size()) - 10); i < blocksYRLE.size(); ++i) {
+        std::cout << "(" << blocksYRLE[i].first << ", " << blocksYRLE[i].second << ") ";
+    }
+    std::cout << std::endl;
 
     for(Block & block : blocksCb){
         std::vector<std::pair<int,int>> RLEBlock;
@@ -415,13 +446,6 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     }
 
     //std::cout<<"size blocksRLE "<<blocksYRLE.size()<<" "<<blocksCbRLE.size()<<" "<<blocksCrRLE.size()<<std::endl;
-
-    // Print BlocksRLEEncoded
-    /* printf(" BlocksRLEEncoded:\n");
-    for (const auto& rleBlock : BlocksRLEEncoded) {
-        printf("(%d, %d),", rleBlock.first, rleBlock.second);
-        //printf("|");
-    } */
 
 
     std::vector<std::pair<int, int>> allBlocksRLE; //on fusionne les 3 canaux
@@ -482,34 +506,121 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 
 void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std::vector<Block> & blocks){
 
+    std::cout << " encodedRLE size " << encodedRLE.size() << std::endl;
+
+    /* // Print the last 10 elements of the encoded RLE
+    int startIdx = std::max(0, static_cast<int>(encodedRLE.size()) - 10);
+    for (int i = startIdx; i < encodedRLE.size(); ++i) {
+        std::cout << "(" << encodedRLE[i].first << ", " << encodedRLE[i].second << ") ";
+    }
+    std::cout << std::endl; */
+
     int currentRLEIndex = 0;
     int currentBlockProgress = 0;
+<<<<<<< HEAD
     int cpt = 0;
+=======
+
+    int nbBlockProgress = 0;
+    
+>>>>>>> 335dfd0 (fixed rle encoding on some images)
     while(currentRLEIndex < encodedRLE.size()){
         Block currentBlock(8);
         std::vector<std::pair<int,int>> currentBlockRLE;
 
         //tant que on a pas fini le bloc on lit des RLE
         while(currentBlockProgress < 64){
+
+            
+
             currentBlockRLE.push_back(encodedRLE[currentRLEIndex]);
+            
+            
+            //std::cout << " blocks (" << encodedRLE[currentRLEIndex].first << ", "<< encodedRLE[currentRLEIndex].second << ")" <<std::endl;
             currentBlockProgress += encodedRLE[currentRLEIndex].first;
+            
+            //std::cout << "block progress" << currentBlockProgress << std::endl;
+
             currentRLEIndex++;
+
+            //if(currentRLEIndex >= encodedRLE.size()) {std::cout << "ERROR" << std::endl; return;}
+            
         }
- 
+
+        nbBlockProgress++;
+
+        if (nbBlockProgress > 206 && nbBlockProgress < 210) {
+            std::cout << nbBlockProgress << " :\n";
+            for (const auto& rle : currentBlockRLE) {
+                std::cout << "(" << rle.first << ", " << rle.second << ") ";
+            }
+            std::cout << std::endl;
+        }
+
 
         //on inverse les operations de la compression
+<<<<<<< HEAD
+=======
+
+  
+
+>>>>>>> 335dfd0 (fixed rle encoding on some images)
         RLEDecompression(currentBlockRLE, currentBlock.flatDctMatrix);
+
+        // Print flatDctMatrix
+        /* std::cout << "Block flatDctMatrix:\n";
+        for (const auto& val : currentBlock.flatDctMatrix) {
+            std::cout << val << " ";
+        }
+        std::cout << "\n"; */
 
         unflattenZigZag(currentBlock);
 
+        /* std::cout << "Block DCT matrix before:\n";
+        for (const auto& row : currentBlock.dctMatrix) {
+            for (const auto& val : row) {
+                std::cout << val << " ";
+            }
+            std::cout << "\n";
+        } */
+
         inverse_quantification(currentBlock);
+
+        /* std::cout << "Block DCT matrix after:\n";
+        for (const auto& row : currentBlock.dctMatrix) {
+            for (const auto& val : row) {
+                std::cout << val << " ";
+            }
+            std::cout << "\n";
+        } */
 
         IDCT(currentBlock);
 
+        // Print block data
+        /* std::cout << "Block data:\n";
+        for (const auto& row : currentBlock.data) {
+            for (const auto& val : row) {
+            std::cout << val << " ";
+            }
+            std::cout << "\n";
+        }
+         */
+
+        //std::string blockname("./img/out/blocks/block_"+ std::to_string(nbBlockProgress) +".pgm");
+        //currentBlock.savePGM(blockname.c_str());
+
         blocks.push_back(currentBlock);
         currentBlockProgress = 0;
+<<<<<<< HEAD
         cpt ++;
+=======
+
+>>>>>>> 335dfd0 (fixed rle encoding on some images)
     }
+    
+
+    std::cout << "Finale RLE index " << currentRLEIndex << std::endl;
+    std::cout << "Nb Block Progress" << nbBlockProgress << std::endl;
 
     std::cout<<"ici :"<<cpt<<" "<<encodedRLE.size()<<std::endl;
 }
@@ -548,6 +659,8 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
         blocksYRLE.push_back(BlocksRLEEncoded[i]);
     }
 
+    rledecompression = blocksYRLE;
+
     for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
         blocksCbRLE.push_back(BlocksRLEEncoded[i]);
     }
@@ -577,17 +690,42 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     std::vector<Block> blocksCb;
     std::vector<Block> blocksCr;
 
-    decompressBlocksRLE(blocksYRLE, blocksY);
-    printf("blocksY size: %lu\n", blocksY.size());
-
     decompressBlocksRLE(blocksCbRLE, blocksCb);
     printf("blocksCb size: %lu\n", blocksCb.size());
 
     decompressBlocksRLE(blocksCrRLE, blocksCr);
     printf("blocksCr size: %lu\n", blocksCr.size());
-    
-    
-    
+   
+    decompressBlocksRLE(blocksYRLE, blocksY);
+    printf("blocksY size: %lu\n", blocksY.size()); 
+
+    /* if (rlecompression.size() != rledecompression.size()) {
+        std::cout << "The sizes of rlecompression and rledecompression are not equal." << std::endl;
+    } else {
+        bool areEqual = true;
+        for (size_t i = 0; i < rlecompression.size(); ++i) {
+            if (rlecompression[i] != rledecompression[i]) {
+                std::cout << "Difference found at index " << i << ": "
+                          << "rlecompression = (" << rlecompression[i].first << ", " << rlecompression[i].second << "), "
+                          << "rledecompression = (" << rledecompression[i].first << ", " << rledecompression[i].second << ")" << std::endl;
+                areEqual = false;
+            }
+        }
+        if (areEqual) {
+            std::cout << "All elements of rlecompression and rledecompression are equal." << std::endl;
+        }
+    }
+
+    int sumFirstElements = 0;
+    for (const auto& pair : rledecompression) {
+        sumFirstElements += pair.first;
+    }
+
+    if (sumFirstElements == 64 * 256) {
+        std::cout << "The sum of the first elements of all RLE pairs is equal to 64 * 256." << std::endl;
+    } else {
+        std::cout << "The sum of the first elements of all RLE pairs is not equal to 64 * 256. : " << sumFirstElements << std::endl;
+    } */
 
     printf("Reconstructing image from blocks\n");
 
@@ -604,6 +742,7 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     ImageBase upSampledCb(imageWidth, imageHeight, false);
     ImageBase upSampledCr(imageWidth, imageHeight, false);
 
+<<<<<<< HEAD
     printf("Reconstructing Y channel\n");
     reconstructImage(blocksY, imY);
     printf("saving Y channel\n");
@@ -611,6 +750,8 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
 
 
 
+=======
+>>>>>>> 335dfd0 (fixed rle encoding on some images)
     printf("Reconstructing Cb channel\n");
     reconstructImage(blocksCb, imCb);
     up_sampling(imCb, upSampledCb);
@@ -620,6 +761,15 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     reconstructImage(blocksCr, imCr);
     up_sampling(imCr, upSampledCr);
     upSampledCr.save("./img/out/Cr_decompressed.pgm");
+
+    
+
+    printf("Reconstructing Y channel\n");
+    reconstructImage(blocksY, imY);
+    printf("saving Y channel\n");
+    imY.save("./img/out/Y_decompressed.pgm");
+
+    
 
 
 

@@ -102,21 +102,23 @@ int zigzag[8][8] = {
         {35, 36, 48, 49, 57, 58, 62, 63}
 };
 
-void flattenZigZag(Block & block){
-    for (int i = 0; i < block.dctMatrix.size(); i++){
-        for (int j = 0; j < block.dctMatrix[0].size(); j++){
-            block.flatDctMatrix[zigzag[i][j]] = block.dctMatrix[i][j];
-        }
+void flattenZigZag(Block &block) {
+    // On suppose que la taille de dctMatrix est 8x8 et que flatDctMatrix peut contenir 64 éléments.
+    for (int i = 0; i < 8 * 8; i++) {
+        int row = zigzag[i / 8][i % 8] / 8; // Calcul de la ligne dans la matrice
+        int col = zigzag[i / 8][i % 8] % 8; // Calcul de la colonne dans la matrice
+        block.flatDctMatrix[i] = block.dctMatrix[row][col];
     }
 }
 
-void unflattenZigZag(Block & block){
-    for (int i = 0; i < block.dctMatrix.size(); i++){
-        for (int j = 0; j < block.dctMatrix[0].size(); j++){
-            block.dctMatrix[i][j] = block.flatDctMatrix[zigzag[i][j]];
-        }
+void unflattenZigZag(Block &block) {
+    for (int i = 0; i < 8 * 8; i++) {
+        int row = zigzag[i / 8][i % 8] / 8; // Calcul de la ligne dans la matrice
+        int col = zigzag[i / 8][i % 8] % 8; // Calcul de la colonne dans la matrice
+        block.dctMatrix[row][col] = block.flatDctMatrix[i];
     }
 }
+
 
 float PSNR(ImageBase & im1, ImageBase & im2){
     float mse = 0;
