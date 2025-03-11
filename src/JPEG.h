@@ -144,6 +144,7 @@ std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8) {
     int height = imIn.getHeight();
     int width = imIn.getWidth();
 
+
     for (int i = 0; i < height; i += blockSize) {
         for (int j = 0; j < width; j += blockSize) {
             Block block(blockSize);
@@ -163,6 +164,7 @@ std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8) {
             }
 
             blocks.push_back(block);
+            
         }
     }
 
@@ -174,10 +176,14 @@ std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8) {
 //reconstruction de l'image en niveau de gris à partir des blocs 
 void reconstructImage(std::vector<Block> & blocks, ImageBase & imIn, int blocksize = 8){
 
-    for(int i = 0; i < imIn.getHeight(); i+=blocksize){
-        for(int j = 0; j < imIn.getWidth(); j+=blocksize){
+    int height = imIn.getHeight();
+    int width = imIn.getWidth();
+    float bls = 1.0/(float)blocksize;
 
-            Block block = blocks[i/blocksize * (imIn.getWidth() / blocksize) + j/blocksize]; //pas terrible de
+    for(int i = 0; i < height; i += blocksize){
+        for(int j = 0; j < width; j += blocksize){
+
+            Block block = blocks[i * bls * (width * bls) + j * bls];
 
             for(int k = 0; k < blocksize; k++){
                 for(int l = 0; l < blocksize; l++){
@@ -250,7 +256,7 @@ void quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
-            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] / quantificationMatrix3[i][j];
+            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] / quantificationMatrix2[i][j];
         
         }
     }
@@ -260,7 +266,7 @@ void inverse_quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
-            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] * quantificationMatrix3[i][j];
+            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] * quantificationMatrix2[i][j];
         
         }
     }
@@ -318,7 +324,7 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     printf("  Fini\n");
 
     //Découpage en blocs de pixel
-    printf("Découpage en blocs de pixel ");
+    printf("Découpage en blocs de pixel \n");
     std::vector<Block> blocksY = getBlocks(imY, 8);
     std::vector<Block> blocksCb = getBlocks(downSampledCb, 8);
     std::vector<Block> blocksCr = getBlocks(downSampledCr, 8);
@@ -378,7 +384,7 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 
     printf("  Fini\n");
 
-    printf("Codage RLE");
+    printf("Codage RLE \n");
 
     std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
     std::vector<std::pair<int,int>> blocksCbRLE;
@@ -408,6 +414,7 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
         blocksCrRLE.insert(blocksCrRLE.end(), RLEBlock.begin(), RLEBlock.end());
     }
 
+    //std::cout<<"size blocksRLE "<<blocksYRLE.size()<<" "<<blocksCbRLE.size()<<" "<<blocksCrRLE.size()<<std::endl;
 
     // Print BlocksRLEEncoded
     /* printf(" BlocksRLEEncoded:\n");
@@ -477,7 +484,7 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
     int currentRLEIndex = 0;
     int currentBlockProgress = 0;
-    
+    int cpt = 0;
     while(currentRLEIndex < encodedRLE.size()){
         Block currentBlock(8);
         std::vector<std::pair<int,int>> currentBlockRLE;
@@ -491,7 +498,6 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
  
 
         //on inverse les operations de la compression
-
         RLEDecompression(currentBlockRLE, currentBlock.flatDctMatrix);
 
         unflattenZigZag(currentBlock);
@@ -502,8 +508,10 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
         blocks.push_back(currentBlock);
         currentBlockProgress = 0;
+        cpt ++;
     }
 
+    std::cout<<"ici :"<<cpt<<" "<<encodedRLE.size()<<std::endl;
 }
 
 void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut){
@@ -518,12 +526,16 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     int downSampledWidth, downSampledHeight;
     int channelYRLESize, channelCbRLESize, channelCrRLESize;
 
+
+
     printf("Reading huffman encoded file\n");
 
     readHuffmanEncoded(outFileName,
                         codeTable, BlocksRLEEncoded,
                         imageWidth, imageHeight, downSampledWidth, downSampledHeight,
                         channelYRLESize, channelCbRLESize, channelCrRLESize);
+
+    std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
 
     printf("Code table size: %lu\n", codeTable.size());
 
@@ -592,11 +604,12 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     ImageBase upSampledCb(imageWidth, imageHeight, false);
     ImageBase upSampledCr(imageWidth, imageHeight, false);
 
-
     printf("Reconstructing Y channel\n");
     reconstructImage(blocksY, imY);
     printf("saving Y channel\n");
     imY.save("./img/out/Y_decompressed.pgm");
+
+
 
     printf("Reconstructing Cb channel\n");
     reconstructImage(blocksCb, imCb);
@@ -607,6 +620,8 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     reconstructImage(blocksCr, imCr);
     up_sampling(imCr, upSampledCr);
     upSampledCr.save("./img/out/Cr_decompressed.pgm");
+
+
 
 
 

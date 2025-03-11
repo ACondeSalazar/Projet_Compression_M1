@@ -198,7 +198,7 @@ unsigned char *ImageBase::operator[](int l)
 	
 	if((!color && l >= height) || (color && l >= height*3))
 	{
-		printf("L'indice se trouve en dehors des limites de l'image");
+		printf("L'indice se trouve en dehors des limites de l'image l : %d height : %d color : %d\n",l,height,color);
 		exit(0);
 	}
 	

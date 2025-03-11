@@ -45,6 +45,7 @@ void DCT(Block & block){
     int N = block.data.size();
 
     double mul = PI / (2 * N); // petite optimisation
+    const double inv_sqrt2 = 1.0 / sqrt(2.0); //micro opti
 
     for (int u = 0; u < N; u++){
         for (int v = 0; v < N; v++){ //pour chaque fréquence
@@ -56,8 +57,8 @@ void DCT(Block & block){
                 
                 }
             }
-            double Cu = (u == 0) ? 1 / sqrt(2) : 1;
-            double Cv = (v == 0) ? 1 / sqrt(2) : 1;
+            double Cu = (u == 0) ? inv_sqrt2 : 1;
+            double Cv = (v == 0) ? inv_sqrt2 : 1;
             block.dctMatrix[u][v] = 0.25 * Cu * Cv * sum;
         }
     }
@@ -69,15 +70,16 @@ void IDCT(Block & block) {
     int N = block.dctMatrix.size();
 
     double mul = PI / (2 * N); // petite optimisation
-
+    const double inv_sqrt2 = 1.0 / sqrt(2.0); //micro opti
 
     for (int x = 0; x < N; x++) {
         for (int y = 0; y < N; y++) { // reconstruct pixel values
             double sum = 0;
             for (int u = 0; u < N; u++) {
                 for (int v = 0; v < N; v++) {
-                    double Cu = (u == 0) ? 1 / sqrt(2) : 1;
-                    double Cv = (v == 0) ? 1 / sqrt(2) : 1;
+                    
+                    double Cu = (u == 0) ? inv_sqrt2 : 1.0;
+                    double Cv = (v == 0) ? inv_sqrt2 : 1.0;
                     
                     sum += Cu * Cv * block.dctMatrix[u][v] * cos((2 * x + 1) * u * mul) * cos((2 * y + 1) * v * mul);
                 }
