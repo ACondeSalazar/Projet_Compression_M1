@@ -534,13 +534,13 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
         nbBlockProgress++;
 
-        if (nbBlockProgress > 206 && nbBlockProgress < 210) {
+        /*if (nbBlockProgress > 206 && nbBlockProgress < 210) {
             std::cout << nbBlockProgress << " :\n";
             for (const auto& rle : currentBlockRLE) {
                 std::cout << "(" << rle.first << ", " << rle.second << ") ";
             }
             std::cout << std::endl;
-        }
+        }*/
 
 
         //on inverse les operations de la compression
@@ -596,8 +596,8 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
     }
     
 
-    std::cout << "Finale RLE index " << currentRLEIndex << std::endl;
-    std::cout << "Nb Block Progress" << nbBlockProgress << std::endl;
+    //std::cout << "Finale RLE index " << currentRLEIndex << std::endl;
+    //std::cout << "Nb Block Progress" << nbBlockProgress << std::endl;
 
 }
 

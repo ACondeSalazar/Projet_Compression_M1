@@ -25,11 +25,11 @@ int main(int argc, char **argv)
 
     imIn.load(cNomImgLue.data());
 
-    compression2000(cNomImgLue.data(), cNomImgOut.data(), imIn);
+    compression(cNomImgLue.data(), cNomImgOut.data(), imIn);
 
     printf("compression finie \n ================================================ \n");
 
-    /*long sizeImin = getFileSize(cNomImgLue); //fontion dans Utils.h
+    long sizeImin = getFileSize(cNomImgLue); //fontion dans Utils.h
     long sizeComp = getFileSize(cNomImgOut);
     double taux = (double)sizeImin/(double)sizeComp;
 
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
     printf("taux de compression : %f \n",taux);
 
     //free(imIn);
-    //free(imOut);*/
+    //free(imOut);
 
     return 0;
 }

@@ -27,4 +27,10 @@ void quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std:
 
 std::vector<int> getFlatTile(Tile & tile);
 
+void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::vector<Tile>& tilesY, int tileWidth, int tileHeight);
+
+void reconstructImage(std::vector<Tile> & tiles, ImageBase & imIn, int blocksize) ;
+
 void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn);
+
+void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut);
