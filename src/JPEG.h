@@ -181,14 +181,9 @@ std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8) {
 //reconstruction de l'image en niveau de gris à partir des blocs 
 void reconstructImage(std::vector<Block> & blocks, ImageBase & imIn, int blocksize = 8){
 
-<<<<<<< HEAD
     int height = imIn.getHeight();
     int width = imIn.getWidth();
     float bls = 1.0/(float)blocksize;
-=======
-    for(int i = 0; i < imIn.getHeight() ; i+=blocksize){
-        for(int j = 0; j < imIn.getWidth() ; j+=blocksize){
->>>>>>> 335dfd0 (fixed rle encoding on some images)
 
     for(int i = 0; i < height; i += blocksize){
         for(int j = 0; j < width; j += blocksize){
@@ -267,11 +262,7 @@ void quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
-<<<<<<< HEAD
-            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] / quantificationMatrix2[i][j];
-=======
             block.dctMatrix[i][j] = (int)(block.dctMatrix[i][j] / quantificationMatrix2[i][j]);
->>>>>>> 335dfd0 (fixed rle encoding on some images)
         
         }
     }
@@ -281,11 +272,7 @@ void inverse_quantification (Block & block){
     for (int i = 0; i < block.dctMatrix.size(); i++){
         for (int j = 0; j < block.dctMatrix[0].size(); j++){
 
-<<<<<<< HEAD
-            block.dctMatrix[i][j] = (int)block.dctMatrix[i][j] * quantificationMatrix2[i][j];
-=======
             block.dctMatrix[i][j] = (int)(block.dctMatrix[i][j] * quantificationMatrix2[i][j]);
->>>>>>> 335dfd0 (fixed rle encoding on some images)
         
         }
     }
@@ -517,13 +504,9 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
     int currentRLEIndex = 0;
     int currentBlockProgress = 0;
-<<<<<<< HEAD
-    int cpt = 0;
-=======
 
     int nbBlockProgress = 0;
     
->>>>>>> 335dfd0 (fixed rle encoding on some images)
     while(currentRLEIndex < encodedRLE.size()){
         Block currentBlock(8);
         std::vector<std::pair<int,int>> currentBlockRLE;
@@ -559,12 +542,9 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
 
         //on inverse les operations de la compression
-<<<<<<< HEAD
-=======
 
   
 
->>>>>>> 335dfd0 (fixed rle encoding on some images)
         RLEDecompression(currentBlockRLE, currentBlock.flatDctMatrix);
 
         // Print flatDctMatrix
@@ -611,18 +591,12 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
         blocks.push_back(currentBlock);
         currentBlockProgress = 0;
-<<<<<<< HEAD
-        cpt ++;
-=======
-
->>>>>>> 335dfd0 (fixed rle encoding on some images)
     }
     
 
     std::cout << "Finale RLE index " << currentRLEIndex << std::endl;
     std::cout << "Nb Block Progress" << nbBlockProgress << std::endl;
 
-    std::cout<<"ici :"<<cpt<<" "<<encodedRLE.size()<<std::endl;
 }
 
 void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut){
@@ -742,16 +716,6 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     ImageBase upSampledCb(imageWidth, imageHeight, false);
     ImageBase upSampledCr(imageWidth, imageHeight, false);
 
-<<<<<<< HEAD
-    printf("Reconstructing Y channel\n");
-    reconstructImage(blocksY, imY);
-    printf("saving Y channel\n");
-    imY.save("./img/out/Y_decompressed.pgm");
-
-
-
-=======
->>>>>>> 335dfd0 (fixed rle encoding on some images)
     printf("Reconstructing Cb channel\n");
     reconstructImage(blocksCb, imCb);
     up_sampling(imCb, upSampledCb);
@@ -770,8 +734,6 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     imY.save("./img/out/Y_decompressed.pgm");
 
     
-
-
 
 
 
