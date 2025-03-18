@@ -1,14 +1,11 @@
 #include <stdio.h>
 
-
 #include "ImageBase.h"
 #include "JPEG.h"
 #include "Utils.h"
 #include <string>
 #include <iostream>
 #include <vector>
-
-
 
 
 int main(int argc, char **argv)
