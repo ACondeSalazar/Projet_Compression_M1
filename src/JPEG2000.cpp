@@ -90,6 +90,130 @@ void applyWaveletTransformToTiles(std::vector<Tile>& tiles) {
         applyCDF97(tile.data);
     }
 }
+
+
+void inverseCDF97(std::vector<std::vector<int>>& data) {
+    int height = data.size();
+    int width = data[0].size();
+
+    // Inverse de la transformation sur les colonnes
+    for (int j = 0; j < width; ++j) {
+        for (int i = height - 2; i >= 1; --i) {
+            data[i + 1][j] = data[i + 1][j] + data[i][j];  // Restaurer la valeur
+            data[i][j] = 2 * data[i][j] - data[i - 1][j];  // Annuler l'opération moyenne
+        }
+    }
+
+    // Inverse de la transformation sur les lignes
+    for (int i = 0; i < height; ++i) {
+        for (int j = width - 2; j >= 1; --j) {
+            data[i][j + 1] = data[i][j + 1] + data[i][j];  // Restaurer la valeur
+            data[i][j] = 2 * data[i][j] - data[i][j - 1];  // Annuler l'opération moyenne
+        }
+    }
+}
+
+void inverseWaveletTransformToTiles(std::vector<Tile>& tiles) {
+    for (auto& tile : tiles) {
+        inverseCDF97(tile.data);
+    }
+}
+//==========================================================================================================================
+void apply53(std::vector<std::vector<int>>& data) {
+    int height = data.size();
+    int width = data[0].size();
+
+    // Appliquer la transformée sur les lignes
+    for (int y = 0; y < height; ++y) {
+        // Étape de prédiction (lifting)
+        for (int x = 1; x < width - 1; x += 2) {
+            data[y][x] -= (data[y][x - 1] + data[y][x + 1] + 1) / 2;
+        }
+        // Étape de mise à jour
+        for (int x = 0; x < width; x += 2) {
+            if (x == 0) {
+                data[y][x] += (data[y][x + 1] + 1) / 2;
+            } else if (x == width - 1) {
+                data[y][x] += (data[y][x - 1] + 1) / 2;
+            } else {
+                data[y][x] += (data[y][x - 1] + data[y][x + 1] + 2) / 4;
+            }
+        }
+    }
+
+    // Appliquer la transformée sur les colonnes
+    for (int x = 0; x < width; ++x) {
+        // Étape de prédiction (lifting)
+        for (int y = 1; y < height - 1; y += 2) {
+            data[y][x] -= (data[y - 1][x] + data[y + 1][x] + 1) / 2;
+        }
+        // Étape de mise à jour
+        for (int y = 0; y < height; y += 2) {
+            if (y == 0) {
+                data[y][x] += (data[y + 1][x] + 1) / 2;
+            } else if (y == height - 1) {
+                data[y][x] += (data[y - 1][x] + 1) / 2;
+            } else {
+                data[y][x] += (data[y - 1][x] + data[y + 1][x] + 2) / 4;
+            }
+        }
+    }
+}
+
+// Appliquer la transformée inverse en ondelettes 5/3 sur une matrice 2D
+void inverse53(std::vector<std::vector<int>>& data) {
+    int height = data.size();
+    int width = data[0].size();
+
+    // Appliquer l'inverse sur les colonnes
+    for (int x = 0; x < width; ++x) {
+        // Étape de mise à jour inverse
+        for (int y = 0; y < height; y += 2) {
+            if (y == 0) {
+                data[y][x] -= (data[y + 1][x] + 1) / 2;
+            } else if (y == height - 1) {
+                data[y][x] -= (data[y - 1][x] + 1) / 2;
+            } else {
+                data[y][x] -= (data[y - 1][x] + data[y + 1][x] + 2) / 4;
+            }
+        }
+        // Étape de prédiction inverse
+        for (int y = 1; y < height - 1; y += 2) {
+            data[y][x] += (data[y - 1][x] + data[y + 1][x] + 1) / 2;
+        }
+    }
+
+    // Appliquer l'inverse sur les lignes
+    for (int y = 0; y < height; ++y) {
+        // Étape de mise à jour inverse
+        for (int x = 0; x < width; x += 2) {
+            if (x == 0) {
+                data[y][x] -= (data[y][x + 1] + 1) / 2;
+            } else if (x == width - 1) {
+                data[y][x] -= (data[y][x - 1] + 1) / 2;
+            } else {
+                data[y][x] -= (data[y][x - 1] + data[y][x + 1] + 2) / 4;
+            }
+        }
+        // Étape de prédiction inverse
+        for (int x = 1; x < width - 1; x += 2) {
+            data[y][x] += (data[y][x - 1] + data[y][x + 1] + 1) / 2;
+        }
+    }
+}
+
+void applyWaveletTransform53ToTiles(std::vector<Tile>& tiles) {
+    for (auto& tile : tiles) {
+        apply53(tile.data);
+    }
+}
+
+void inverseWaveletTransform53ToTiles(std::vector<Tile>& tiles) {
+    for (auto& tile : tiles) {
+        inverse53(tile.data);
+    }
+}
+
 //==========================================================================================================================
 //quantification
 std::vector<std::vector<int>> quantizationMatrix = {
@@ -103,17 +227,42 @@ std::vector<std::vector<int>> quantizationMatrix = {
     {4, 4, 6, 8, 8, 8, 8, 8}
 };
 
+std::vector<std::vector<int>> quantificationMatrix_test2 = {
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1},
+    {1, 1, 1, 1, 1,1,1,1},
+    {1, 1, 1, 1,1,1,1,1},
+    {1, 1, 1, 1,1,1,1,1},
+    {1, 1, 1, 1,1,1,1,1}
+};
+
+
+
 void quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix) {
     int height = tile.data.size();
     int width = tile.data[0].size();
 
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
-            // Appliquer la quantification : diviser le coefficient par la valeur de la matrice de quantification
-            tile.data[i][j] = std::round(tile.data[i][j] / static_cast<double>(quantizationMatrix[i][j]));
+            tile.data[i][j] = (int)(tile.data[i][j] /(quantizationMatrix[i][j]));
         }
     }
 }
+
+void inverse_quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix){
+    int height = tile.data.size();
+    int width = tile.data[0].size();
+
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            tile.data[i][j] = (int)(tile.data[i][j] * (quantizationMatrix[i][j]));
+        }
+    }
+}
+
+
 
 void quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std::vector<int>>& quantizationMatrix) {
     for (auto& tile : tiles) {
@@ -121,6 +270,11 @@ void quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std:
     }
 }
 
+void inverse_quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std::vector<int>>& quantizationMatrix) {
+    for (auto& tile : tiles) {
+        inverse_quantification(tile, quantizationMatrix);  // Appliquer la quantification à chaque tile
+    }
+}
 
 
 //==========================================================================================================================
@@ -141,58 +295,78 @@ std::vector<int> getFlatTile(Tile & tile) {
 //==========================================================================================================================
 
 void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::vector<Tile>& tilesY, int tileWidth, int tileHeight) {
-    int currentX = 0;
-    int currentY = 0;
-
-    for (const auto& rlePair : tilesYRLE) {
-        int value = rlePair.first;
-        int length = rlePair.second;
-
-        for (int i = 0; i < length; ++i) {
-            // Créer une tuile et la remplir avec la valeur
-            Tile tile(tileWidth, tileHeight, currentX, currentY);
-            for (int row = 0; row < tileHeight; ++row) {
-                for (int col = 0; col < tileWidth; ++col) {
-                    tile.data[row][col] = value;
-                }
-            }
-
-            // Ajouter la tuile au vecteur
-            tilesY.push_back(tile);
-
-            // Mettre à jour la position
-            currentX += tileWidth;
-            if (currentX >= 512) { // Supposons une image de 512x512
-                currentX = 0;
-                currentY += tileHeight;
+    std::vector<int> decompressedData;
+    
+    // Décompression des données RLE en un tableau linéaire
+    for (const auto& pair : tilesYRLE) {
+        int count = pair.first;
+        int value = pair.second;
+        decompressedData.insert(decompressedData.end(), count, value);
+    }
+    
+    // Vérification de la taille des données
+    int numTiles = decompressedData.size() / (tileWidth * tileHeight);
+    if (numTiles * tileWidth * tileHeight != decompressedData.size()) {
+        std::cerr << "Erreur: Données RLE mal formées ou incorrectes." << std::endl;
+        return;
+    }
+    
+    // Remplissage des Tiles
+    tilesY.clear();
+    int index = 0;
+    for (int t = 0; t < numTiles; ++t) {
+        Tile tile(tileWidth, tileHeight, 0, 0);
+        for (int i = 0; i < tileHeight; ++i) {
+            for (int j = 0; j < tileWidth; ++j) {
+                tile.data[i][j] = decompressedData[index++];
             }
         }
+        tilesY.push_back(tile);
     }
+
+
 }
 
 //==========================================================================================================================
 
-void reconstructImage(std::vector<Tile> & tiles, ImageBase & imIn, int blocksize) {
+void reconstructImage(std::vector<Tile> & tiles, ImageBase & imIn, int tileWidth, int tileHeight) {
     int height = imIn.getHeight();
     int width = imIn.getWidth();
-    float bls = 1.0 / (float)blocksize;
+    
+    int numTilesX = width / tileWidth;
+    int numTilesY = height / tileHeight;
 
-    for (int i = 0; i < height; i += blocksize) {
-        for (int j = 0; j < width; j += blocksize) {
-            // Calculer l'indice du tile à partir des coordonnées
-            int tileIndex = (i / blocksize) * (width / blocksize) + (j / blocksize);
+    if (tiles.size() != numTilesX * numTilesY) {
+        std::cerr << "Erreur : Nombre de tiles incorrect (" << tiles.size() << " au lieu de " << numTilesX * numTilesY << ")" << std::endl;
+        return;
+    }
+
+    for (int i = 0; i < height; i += tileHeight) {  // Correction ici
+        for (int j = 0; j < width; j += tileWidth) {  // Correction ici
+
+            int tileX = j / tileWidth;
+            int tileY = i / tileHeight;
+            int tileIndex = tileY * numTilesX + tileX;
+
+            if (tileIndex >= tiles.size()) {
+                std::cerr << "Erreur : tileIndex hors limites (" << tileIndex << ")" << std::endl;
+                continue;
+            }
+
             Tile& tile = tiles[tileIndex];
 
-            for (int k = 0; k < blocksize; k++) {
-                for (int l = 0; l < blocksize; l++) {
-                    if (tile.data[k][l] < 0) { // La valeur peut être négative, on la seuille pour éviter des erreurs lors du cast en uchar dans l'image
-                        tile.data[k][l] = 0;
-                        //std::cout << " aie "<< std::endl;
-                    } else if (tile.data[k][l] > 255) {
-                        tile.data[k][l] = 255;
-                        //std::cout << "houla" << std::endl;
-                    }
-                    imIn[i + k][j + l] = tile.data[k][l];
+            for (int k = 0; k < tileHeight; k++) {  // Correction ici
+                for (int l = 0; l < tileWidth; l++) {  // Correction ici
+                    int pixelX = j + l;
+                    int pixelY = i + k;
+
+                    // Vérifier que l'on reste dans les limites de l'image
+                    if (pixelX >= width || pixelY >= height) continue;
+
+                    int value = tile.data[k][l];
+                    value = std::max(0, std::min(255, value)); // Clamp entre 0 et 255
+
+                    imIn[pixelY][pixelX] = value;
                 }
             }
         }
@@ -267,11 +441,11 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     printf("Wavelet transform et quantification "); // wavelet
 
     
-    applyWaveletTransformToTiles(tilesY);
+    applyWaveletTransform53ToTiles(tilesY);
 
-    applyWaveletTransformToTiles(tilesCr);
+    applyWaveletTransform53ToTiles(tilesCr);
 
-    applyWaveletTransformToTiles(tilesCb);
+    applyWaveletTransform53ToTiles(tilesCb);
     
 
     quantificationForAllTiles(tilesY,quantizationMatrix);
@@ -288,6 +462,7 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     std::vector<std::pair<int,int>> tilesCbRLE;
     std::vector<std::pair<int,int>> tilesCrRLE;
 
+
     for(Tile & tile : tilesY){
         std::vector<std::pair<int,int>> RLETile;
 
@@ -297,11 +472,7 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
         tilesYRLE.insert(tilesYRLE.end(),RLETile.begin(),RLETile.end());
     }
 
-    int totalLengthCb = 0;
-    for (const auto& pair : tilesYRLE) {
-        totalLengthCb += pair.second;
-    }
-    std::cout<<"ici trouduc"<<totalLengthCb<<std::endl;
+
 
     for(Tile & tile : tilesCb){
         std::vector<std::pair<int,int>> RLETile;
@@ -320,6 +491,12 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 
         tilesCrRLE.insert(tilesCrRLE.end(),RLETile.begin(),RLETile.end());
     }
+
+    /*int totalLengthCb = 0;
+    for (const auto& pair : tilesCrRLE) {
+        totalLengthCb += pair.first;
+    }
+    std::cout<<"ici trouduc"<<totalLengthCb<<std::endl;*/
 
     std::vector<std::pair<int, int>> allTilesRLE; //on fusionne les 3 canaux
     allTilesRLE.insert(allTilesRLE.end(), tilesYRLE.begin(), tilesYRLE.end());
@@ -391,9 +568,6 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
         tilesYRLE.push_back(TilesRLEEncoded[i]);
     }
 
-
-
-
     for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
         tilesCbRLE.push_back(TilesRLEEncoded[i]);
     }
@@ -401,6 +575,11 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     for (int i = channelYRLESize + channelCbRLESize; i < channelYRLESize + channelCbRLESize + channelCrRLESize; i++) {
         tilesCrRLE.push_back(TilesRLEEncoded[i]);
     }
+
+    for(int i = 10; i<30; i++){
+        printf("[%d , %d] ,",tilesYRLE[i].first,tilesYRLE[i].second);
+    }
+
 
     printf("Blocks decoding\n");
 
@@ -413,13 +592,53 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     decompressTilesRLE(tilesCbRLE, tilesCb,8,8);
     printf("tilesCb size: %lu\n", tilesCb.size());
 
+
     decompressTilesRLE(tilesCrRLE, tilesCr,8,8);
     printf("tilesCr size: %lu\n", tilesCr.size());
    
     decompressTilesRLE(tilesYRLE, tilesY,8,8);
     printf("tilesY size: %lu\n", tilesY.size()); 
 
+    Tile test = tilesY[0];
+    printf("\n avant inverseWaveletTransformToTiles : \n");
 
+
+    for(int i = 0; i<8; i++){
+        printf("\n");
+        for(int j = 0; j<8; j++){
+            printf(" %d,",test.data[i][j]);
+        }
+    }
+
+    inverse_quantificationForAllTiles(tilesCb,quantizationMatrix);
+    inverse_quantificationForAllTiles(tilesCr,quantizationMatrix);
+    inverse_quantificationForAllTiles(tilesY,quantizationMatrix);
+    
+    /*printf("\n apres inverse_quantificationForAllTiles : \n");
+    test = tilesY[0];
+
+    for(int i = 0; i<8; i++){
+        printf("\n");
+        for(int j = 0; j<8; j++){
+            printf(" %d,",test.data[i][j]);
+        }
+    }*/
+
+    inverseWaveletTransform53ToTiles(tilesCb);
+    inverseWaveletTransform53ToTiles(tilesCr);
+    inverseWaveletTransform53ToTiles(tilesY);
+
+    printf("\n apres inverseWaveletTransformToTiles : \n");
+    test = tilesY[0];
+
+    
+    for(int i = 0; i<8; i++){
+        printf("\n");
+        for(int j = 0; j<8; j++){
+            printf(" %d,",test.data[i][j]);
+        }
+    }
+    printf("\n");
 
     printf("Reconstructing image from tiles\n");
 
@@ -437,25 +656,21 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     ImageBase upSampledCr(imageWidth, imageHeight, false);
 
     printf("Reconstructing Cb channel\n");
-    reconstructImage(tilesCb, imCb,8);
+    reconstructImage(tilesCb, imCb,8,8);
     up_sampling(imCb, upSampledCb);
     upSampledCb.save("./img/out/Cb_decompressed.pgm");
 
     printf("Reconstructing Cr channel\n");
-    reconstructImage(tilesCr, imCr,8);
+    reconstructImage(tilesCr, imCr,8,8);
     up_sampling(imCr, upSampledCr);
     upSampledCr.save("./img/out/Cr_decompressed.pgm");
 
-    
-
     printf("Reconstructing Y channel\n");
-    reconstructImage(tilesY, imY,8);
+    reconstructImage(tilesY, imY,8,8);
     printf("saving Y channel\n");
     imY.save("./img/out/Y_decompressed.pgm");
 
     
-
-
 
     printf("Reconstructing image from YCbCr\n");
     YCbCr_to_RGB(imY, upSampledCb, upSampledCr, (*imOut));

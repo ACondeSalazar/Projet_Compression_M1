@@ -22,14 +22,24 @@ std::vector<Tile> getTiles(ImageBase &imIn, int tileSize);
 void applyCDF97(std::vector<std::vector<int>>& data);
 void applyWaveletTransformToTiles(std::vector<Tile>& tiles);
 
+void inverseCDF97(std::vector<std::vector<int>>& data);
+void inverseWaveletTransformToTiles(std::vector<Tile>& tiles);
+
+void apply53(std::vector<std::vector<int>>& data);
+void inverse53(std::vector<std::vector<int>>& data);
+void applyWaveletTransform53ToTiles(std::vector<Tile>& tiles);
+void inverseWaveletTransform53ToTiles(std::vector<Tile>& tiles);
+
+
 void quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix);
+void inverse_quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix);
 void quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std::vector<int>>& quantizationMatrix);
 
 std::vector<int> getFlatTile(Tile & tile);
 
 void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::vector<Tile>& tilesY, int tileWidth, int tileHeight);
 
-void reconstructImage(std::vector<Tile> & tiles, ImageBase & imIn, int blocksize) ;
+void reconstructImage(std::vector<Tile> & tiles, ImageBase & imIn, int tileWidth, int tileHeight);
 
 void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn);
 
