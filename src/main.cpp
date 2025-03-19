@@ -1,14 +1,12 @@
 #include <stdio.h>
 
-
 #include "ImageBase.h"
 #include "JPEG.h"
+#include "JPEG2000.h"
 #include "Utils.h"
 #include <string>
 #include <iostream>
 #include <vector>
-
-
 
 
 int main(int argc, char **argv)
@@ -25,9 +23,46 @@ int main(int argc, char **argv)
 
     ImageBase  imIn;
 
+    /*Tile tile(4, 4, 0, 0);
+    tile.data = {
+        {10, 20, 30, 40},
+        {50, 60, 70, 80},
+        {90, 100, 110, 120},
+        {130, 140, 150, 160}
+    };
+    
+    std::vector<Tile> tiles = {tile};
+    
+    // Appliquer la transformée
+    applyWaveletTransform53ToTiles(tiles);
+    
+    // Afficher le résultat
+    for (const auto& row : tiles[0].data) {
+        for (int val : row) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    printf("\n \n");
+    
+    // Appliquer l'inverse
+    inverseWaveletTransform53ToTiles(tiles);
+    
+    // Afficher le résultat inverse
+    for (const auto& row : tiles[0].data) {
+        for (int val : row) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+    }*/
+
+
+
+
     imIn.load(cNomImgLue.data());
 
-    compression(cNomImgLue.data(), cNomImgOut.data(), imIn);
+    compression2000(cNomImgLue.data(), cNomImgOut.data(), imIn);
 
     printf("compression finie \n ================================================ \n");
 
@@ -43,7 +78,7 @@ int main(int argc, char **argv)
     ImageBase * imOut;
     std::string fileDecomp = "./img/out/decompressed.ppm";
 
-    decompression(cNomImgOut.c_str(), fileDecomp.c_str(), imOut);
+    decompression2000(cNomImgOut.c_str(), fileDecomp.c_str(), imOut);
 
     printf("Decompression fini\n\n");
 
