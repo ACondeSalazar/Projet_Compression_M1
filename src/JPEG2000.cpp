@@ -11,8 +11,8 @@
 
 #include "JPEG2000.h"
 
-int tilewidth = 8;
-int tileHeight = 8;
+int tilewidth = 120;
+int tileHeight = 135;
 /*
 Avec JPEG2000 on ne fait pas des blocks de 8 par 8 mais des Tiles
 Ici on va faire des Tiles de taille 128*128 ou 256*256
