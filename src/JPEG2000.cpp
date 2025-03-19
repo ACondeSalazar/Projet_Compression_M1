@@ -11,35 +11,36 @@
 
 #include "JPEG2000.h"
 
-
+int tilewidth = 8;
+int tileHeight = 8;
 /*
 Avec JPEG2000 on ne fait pas des blocks de 8 par 8 mais des Tiles
 Ici on va faire des Tiles de taille 128*128 ou 256*256
 */
 
-std::vector<Tile> getTiles(ImageBase &imIn, int tileSize) {
+std::vector<Tile> getTiles(ImageBase &imIn, int tileWidth, int tileHeight) {
     std::vector<Tile> tiles;
     int height = imIn.getHeight();
     int width = imIn.getWidth();
 
     // Le nombre de tiles dans chaque direction
-    int numTilesX = (width + tileSize - 1) / tileSize;  // pour arrondir vers le haut
-    int numTilesY = (height + tileSize - 1) / tileSize;  // pour arrondir vers le haut
+    int numTilesX = (width + tileWidth - 1) / tileWidth;  // Arrondir vers le haut
+    int numTilesY = (height + tileHeight - 1) / tileHeight;  // Arrondir vers le haut
 
     // Remplir le vecteur de tiles
     for (int i = 0; i < numTilesY; i++) {
         for (int j = 0; j < numTilesX; j++) {
             // Calculer la largeur et la hauteur du tile en fonction de la position
-            int tileWidth = std::min(tileSize, width - j * tileSize);
-            int tileHeight = std::min(tileSize, height - i * tileSize);
+            int currentTileWidth = std::min(tileWidth, width - j * tileWidth);
+            int currentTileHeight = std::min(tileHeight, height - i * tileHeight);
 
             // Créer un tile
-            Tile tile(tileWidth, tileHeight, j * tileSize, i * tileSize);
+            Tile tile(currentTileWidth, currentTileHeight, j * tileWidth, i * tileHeight);
 
             // Remplir le tile avec les données de l'image
-            for (int k = 0; k < tileHeight; k++) {
-                for (int l = 0; l < tileWidth; l++) {
-                    tile.data[k][l] = imIn[i * tileSize + k][j * tileSize + l];
+            for (int k = 0; k < currentTileHeight; k++) {
+                for (int l = 0; l < currentTileWidth; l++) {
+                    tile.data[k][l] = imIn[i * tileHeight + k][j * tileWidth + l];
                 }
             }
 
@@ -216,63 +217,61 @@ void inverseWaveletTransform53ToTiles(std::vector<Tile>& tiles) {
 
 //==========================================================================================================================
 //quantification
-std::vector<std::vector<int>> quantizationMatrix = {
-    {1, 1, 2, 2, 2, 2, 4, 4},
-    {1, 1, 2, 2, 2, 4, 4, 4},
-    {2, 2, 2, 4, 4, 4, 6, 6},
-    {2, 2, 4, 4, 6, 6, 8, 8},
-    {2, 2, 4, 6, 8, 8, 8, 8},
-    {4, 4, 4, 6, 8, 8, 8, 8},
-    {4, 4, 6, 8, 8, 8, 8, 8},
-    {4, 4, 6, 8, 8, 8, 8, 8}
-};
-
-std::vector<std::vector<int>> quantificationMatrix_test2 = {
-    {1, 1, 1, 1, 1, 1, 1, 1},
-    {1, 1, 1, 1, 1, 1, 1, 1},
-    {1, 1, 1, 1, 1, 1, 1, 1},
-    {1, 1, 1, 1, 1, 1, 1, 1},
-    {1, 1, 1, 1, 1,1,1,1},
-    {1, 1, 1, 1,1,1,1,1},
-    {1, 1, 1, 1,1,1,1,1},
-    {1, 1, 1, 1,1,1,1,1}
-};
 
 
 
-void quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix) {
+void quantificationuniforme(Tile& tile, int quantizationStepLow, int quantizationStepHigh) {
     int height = tile.data.size();
     int width = tile.data[0].size();
 
+    // On suppose que la sous-bande LL est en haut à gauche (premier quart de la tuile)
+    int llHeight = height / 2;
+    int llWidth = width / 2;
+
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
-            tile.data[i][j] = (int)(tile.data[i][j] /(quantizationMatrix[i][j]));
+            if (i < llHeight && j < llWidth) {
+                // Sous-bande LL (basse fréquence) : quantification fine
+                tile.data[i][j] = (tile.data[i][j] + quantizationStepLow / 2) / quantizationStepLow;
+            } else {
+                // Sous-bandes LH, HL, HH (haute fréquence) : quantification plus forte
+                tile.data[i][j] = (tile.data[i][j] + quantizationStepHigh / 2) / quantizationStepHigh;
+            }
         }
     }
 }
 
-void inverse_quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix){
+void inverseQuantificationuniforme(Tile& tile, int quantizationStepLow, int quantizationStepHigh) {
     int height = tile.data.size();
     int width = tile.data[0].size();
 
+    int llHeight = height / 2;
+    int llWidth = width / 2;
+
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
-            tile.data[i][j] = (int)(tile.data[i][j] * (quantizationMatrix[i][j]));
+            if (i < llHeight && j < llWidth) {
+                // Sous-bande LL
+                tile.data[i][j] *= quantizationStepLow;
+            } else {
+                // Sous-bandes LH, HL, HH
+                tile.data[i][j] *= quantizationStepHigh;
+            }
         }
     }
 }
 
 
 
-void quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std::vector<int>>& quantizationMatrix) {
+void quantificationForAllTiles(std::vector<Tile> & tiles) {
     for (auto& tile : tiles) {
-        quantification(tile, quantizationMatrix);  // Appliquer la quantification à chaque tile
+        quantificationuniforme(tile, 2,4);  // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
     }
 }
 
-void inverse_quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std::vector<int>>& quantizationMatrix) {
+void inverse_quantificationForAllTiles(std::vector<Tile> & tiles) {
     for (auto& tile : tiles) {
-        inverse_quantification(tile, quantizationMatrix);  // Appliquer la quantification à chaque tile
+        inverseQuantificationuniforme(tile,2,4); // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
     }
 }
 
@@ -428,29 +427,33 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     //Découpage en tiles de tiles
     printf("Découpage en tiles de pixel \n");
 
-    std::vector<Tile> tilesY = getTiles(imY, 8); // ici ca devrait etre plus de 8 genre 128 ou plus mais ca plante (problème dans getTiles)
-    std::vector<Tile> tilesCb = getTiles(downSampledCb, 8);
-    std::vector<Tile> tilesCr = getTiles(downSampledCr, 8);
+    std::vector<Tile> tilesY = getTiles(imY, tilewidth,tileHeight); // ici ca devrait etre plus de 8 genre 128 ou plus mais ca plante (problème dans getTiles)
+    std::vector<Tile> tilesCb = getTiles(downSampledCb, tilewidth,tileHeight);
+    std::vector<Tile> tilesCr = getTiles(downSampledCr, tilewidth,tileHeight);
 
     printf("number of tiles for Y channel: %d\n", tilesY.size());
     printf("number of tiles for Cb channel: %d\n", tilesCb.size());
     printf("number of tiles for Cr channel: %d\n", tilesCr.size());
 
-    
 
-    printf("Wavelet transform et quantification "); // wavelet
+    printf("Wavelet transform et quantification : \n"); // wavelet
 
     
     applyWaveletTransform53ToTiles(tilesY);
+    
 
     applyWaveletTransform53ToTiles(tilesCr);
+    
 
     applyWaveletTransform53ToTiles(tilesCb);
     
+    
+    quantificationForAllTiles(tilesY);
+    
+    quantificationForAllTiles(tilesCr);
 
-    quantificationForAllTiles(tilesY,quantizationMatrix);
-    quantificationForAllTiles(tilesCr,quantizationMatrix);
-    quantificationForAllTiles(tilesCb,quantizationMatrix);
+    quantificationForAllTiles(tilesCb);
+    
 
     //Plus que RLE et Huffmann
 
@@ -589,55 +592,27 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     std::vector<Tile> tilesCr;
 
     printf("tilesCbRLE size: %lu\n", tilesCbRLE.size());
-    decompressTilesRLE(tilesCbRLE, tilesCb,8,8);
+    decompressTilesRLE(tilesCbRLE, tilesCb,tilewidth,tileHeight);
     printf("tilesCb size: %lu\n", tilesCb.size());
 
 
-    decompressTilesRLE(tilesCrRLE, tilesCr,8,8);
+    decompressTilesRLE(tilesCrRLE, tilesCr,tilewidth,tileHeight);
     printf("tilesCr size: %lu\n", tilesCr.size());
    
-    decompressTilesRLE(tilesYRLE, tilesY,8,8);
+    decompressTilesRLE(tilesYRLE, tilesY,tilewidth,tileHeight);
     printf("tilesY size: %lu\n", tilesY.size()); 
 
-    Tile test = tilesY[0];
-    printf("\n avant inverseWaveletTransformToTiles : \n");
 
-
-    for(int i = 0; i<8; i++){
-        printf("\n");
-        for(int j = 0; j<8; j++){
-            printf(" %d,",test.data[i][j]);
-        }
-    }
-
-    inverse_quantificationForAllTiles(tilesCb,quantizationMatrix);
-    inverse_quantificationForAllTiles(tilesCr,quantizationMatrix);
-    inverse_quantificationForAllTiles(tilesY,quantizationMatrix);
+    inverse_quantificationForAllTiles(tilesCb);
+    inverse_quantificationForAllTiles(tilesCr);
+    inverse_quantificationForAllTiles(tilesY);
     
-    /*printf("\n apres inverse_quantificationForAllTiles : \n");
-    test = tilesY[0];
-
-    for(int i = 0; i<8; i++){
-        printf("\n");
-        for(int j = 0; j<8; j++){
-            printf(" %d,",test.data[i][j]);
-        }
-    }*/
 
     inverseWaveletTransform53ToTiles(tilesCb);
     inverseWaveletTransform53ToTiles(tilesCr);
     inverseWaveletTransform53ToTiles(tilesY);
 
-    printf("\n apres inverseWaveletTransformToTiles : \n");
-    test = tilesY[0];
 
-    
-    for(int i = 0; i<8; i++){
-        printf("\n");
-        for(int j = 0; j<8; j++){
-            printf(" %d,",test.data[i][j]);
-        }
-    }
     printf("\n");
 
     printf("Reconstructing image from tiles\n");
@@ -656,17 +631,17 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     ImageBase upSampledCr(imageWidth, imageHeight, false);
 
     printf("Reconstructing Cb channel\n");
-    reconstructImage(tilesCb, imCb,8,8);
+    reconstructImage(tilesCb, imCb,tilewidth,tileHeight);
     up_sampling(imCb, upSampledCb);
     upSampledCb.save("./img/out/Cb_decompressed.pgm");
 
     printf("Reconstructing Cr channel\n");
-    reconstructImage(tilesCr, imCr,8,8);
+    reconstructImage(tilesCr, imCr,tilewidth,tileHeight);
     up_sampling(imCr, upSampledCr);
     upSampledCr.save("./img/out/Cr_decompressed.pgm");
 
     printf("Reconstructing Y channel\n");
-    reconstructImage(tilesY, imY,8,8);
+    reconstructImage(tilesY, imY,tilewidth,tileHeight);
     printf("saving Y channel\n");
     imY.save("./img/out/Y_decompressed.pgm");
 

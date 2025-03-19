@@ -19,11 +19,6 @@ struct Tile {
 
 std::vector<Tile> getTiles(ImageBase &imIn, int tileSize);
 
-void applyCDF97(std::vector<std::vector<int>>& data);
-void applyWaveletTransformToTiles(std::vector<Tile>& tiles);
-
-void inverseCDF97(std::vector<std::vector<int>>& data);
-void inverseWaveletTransformToTiles(std::vector<Tile>& tiles);
 
 void apply53(std::vector<std::vector<int>>& data);
 void inverse53(std::vector<std::vector<int>>& data);
@@ -31,9 +26,10 @@ void applyWaveletTransform53ToTiles(std::vector<Tile>& tiles);
 void inverseWaveletTransform53ToTiles(std::vector<Tile>& tiles);
 
 
-void quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix);
-void inverse_quantification(Tile & tile, const std::vector<std::vector<int>>& quantizationMatrix);
-void quantificationForAllTiles(std::vector<Tile> & tiles, const std::vector<std::vector<int>>& quantizationMatrix);
+void quantificationuniforme(Tile& tile, int quantizationStepLow, int quantizationStepHigh);
+void inverseQuantificationuniforme(Tile& tile, int quantizationStepLow, int quantizationStepHigh);
+void quantificationForAllTiles(std::vector<Tile> & tiles);
+void inverse_quantificationForAllTiles(std::vector<Tile> & tiles);
 
 std::vector<int> getFlatTile(Tile & tile);
 
