@@ -16,10 +16,10 @@ CXXFLAGS =
 CPPFLAGS = -Wall -g
 
 # SDL3 static linking
-SDL3_CFLAGS = -I/usr/local/include/SDL3
-SDL3_LIBS = /usr/local/lib/libSDL3.a -lm -ldl -lpthread
+SDL3_CFLAGS = -I$(PWD)/src/SDL3/include
+SDL3_LIBS = $(PWD)/src/SDL3/lib/libSDL3.a -lm -ldl -lpthread
 CPPFLAGS += $(SDL3_CFLAGS)
-LDLIBS += /usr/local/lib/libSDL3.a -lm -ldl -lpthread -lX11 -lXext -lXcursor -lXrandr -lXinerama -lXi
+LDLIBS += $(SDL3_LIBS) -lX11 -lXext -lXcursor -lXrandr -lXinerama -lXi
 
 
 # Dependency generation flags
