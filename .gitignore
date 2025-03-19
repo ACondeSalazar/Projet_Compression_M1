@@ -1,4 +1,2 @@
 .vscode/
-img/
-obj/
-bin/
+build/

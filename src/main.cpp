@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "ImageBase.h"
 #include "JPEG.h"
 #include "JPEG2000.h"
@@ -8,13 +7,14 @@
 #include <string>
 #include <iostream>
 #include <vector>
-
+#include <stdio.h>
+#include <filesystem>
 #include <SDL3/SDL.h>
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_sdl3.h"
-#include "imgui/imgui_impl_sdlrenderer3.h"
+#include "imgui.h"
+#include "backends/imgui_impl_sdl3.h"
+#include "backends/imgui_impl_sdlrenderer3.h"
 
-#include "imgui/ImGuiFileDialog.h"
+#include "ImGuiFileDialog.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -66,6 +66,9 @@ void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Rend
 
     SDL_UpdateTexture(*texture, NULL, imgData, width * 3);
 
+    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST);
+
+
     stbi_image_free(imgData);
 
 }
@@ -109,8 +112,46 @@ void compressJPEG(SDL_Renderer * renderer){
     decompressedInitialized = true;
 }
 
+void compressJPEG2000(SDL_Renderer * renderer){
+    if (originalFilePathName == "") {
+        std::cout << "Erreur : aucun fichier selectionné" << std::endl;
+        return; 
+    }
+    compression2000(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
+
+    sizeOriginal = getFileSize(originalFilePathName);
+    sizeCompressed = getFileSize(compressedFilePathName);
+    tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
+
+    decompression2000(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
+    std::cout << "finished decompression" << std::endl;
+
+    LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
+
+    ImageBase imOut2;
+    imOut2.load(decompressedFilePathName.data());
+
+    psnr = PSNR(imgOriginal, imOut2);
+
+    decompressedInitialized = true;
+}
+
 int main(int argc, char **argv)
-{
+{   
+    
+
+    namespace fs = std::filesystem;
+
+    try {
+        if (!fs::exists("./img")) {
+            fs::create_directory("./img");
+        }
+        if (!fs::exists("./img/out")) {
+            fs::create_directory("./img/out");
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Create a ./img and ./img/out folder !! " << e.what() << std::endl;
+    }
 
     if ( !SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -132,39 +173,14 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    /*Tile tile(4, 4, 0, 0);
-    tile.data = {
-        {10, 20, 30, 40},
-        {50, 60, 70, 80},
-        {90, 100, 110, 120},
-        {130, 140, 150, 160}
-    };
-    
-    std::vector<Tile> tiles = {tile};
-    
-    // Appliquer la transformée
-    applyWaveletTransform53ToTiles(tiles);
-    
-    // Afficher le résultat
-    for (const auto& row : tiles[0].data) {
-        for (int val : row) {
-            std::cout << val << " ";
-        }
-        std::cout << std::endl;
-    }
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-    printf("\n \n");
-    
-    // Appliquer l'inverse
-    inverseWaveletTransform53ToTiles(tiles);
-    
-    // Afficher le résultat inverse
-    for (const auto& row : tiles[0].data) {
-        for (int val : row) {
-            std::cout << val << " ";
-        }
-        std::cout << std::endl;
-    }*/
+    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer3_Init(renderer);
+
+    bool quit = false;
+    SDL_Event event;
 
     while (!quit) {
         while (SDL_PollEvent(&event)) {
@@ -241,8 +257,8 @@ int main(int argc, char **argv)
                 compressJPEG(renderer);
             }
     
-            if(ImGui::Button("Compression JPEG2000 like (a ajouter)")){
-                //compressJPEG(renderer);
+            if(ImGui::Button("Compression JPEG2000 like")){
+                compressJPEG2000(renderer);
             }
         
         }
@@ -260,9 +276,10 @@ int main(int argc, char **argv)
 
         if (ImGui::Button("Choisir image")) {
             IGFD::FileDialogConfig config;
-            config.path = ".";
+            config.path = "../";
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ppm", config);
         }
+
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
             if (ImGuiFileDialog::Instance()->IsOk()) { 
                 std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
