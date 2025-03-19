@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include "ImageBase.h"
 #include "JPEG.h"
+#include "JPEG2000.h"
 #include "Utils.h"
 #include <cstddef>
 #include <cstdint>
@@ -49,7 +51,6 @@ float mouseX = 0, mouseY = 0;
 
 bool originalInitialized = false;
 bool decompressedInitialized = false;
-
 
 void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Renderer * renderer, SDL_Texture ** texture){ //pointeur vers un pointeur
     int channels;
@@ -108,8 +109,7 @@ void compressJPEG(SDL_Renderer * renderer){
     decompressedInitialized = true;
 }
 
-
-int main( int argc, char* args[] )
+int main(int argc, char **argv)
 {
 
     if ( !SDL_Init(SDL_INIT_VIDEO)) {
@@ -132,13 +132,39 @@ int main( int argc, char* args[] )
         return -1;
     }
 
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer3_Init(renderer);
+    /*Tile tile(4, 4, 0, 0);
+    tile.data = {
+        {10, 20, 30, 40},
+        {50, 60, 70, 80},
+        {90, 100, 110, 120},
+        {130, 140, 150, 160}
+    };
+    
+    std::vector<Tile> tiles = {tile};
+    
+    // Appliquer la transformée
+    applyWaveletTransform53ToTiles(tiles);
+    
+    // Afficher le résultat
+    for (const auto& row : tiles[0].data) {
+        for (int val : row) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+    }
 
-	bool quit = false;
-    SDL_Event event;
+    printf("\n \n");
+    
+    // Appliquer l'inverse
+    inverseWaveletTransform53ToTiles(tiles);
+    
+    // Afficher le résultat inverse
+    for (const auto& row : tiles[0].data) {
+        for (int val : row) {
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
+    }*/
 
     while (!quit) {
         while (SDL_PollEvent(&event)) {
