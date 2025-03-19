@@ -1,16 +1,11 @@
-# Thomas Daley
-# September 13, 2021
-
-# A generic build template for C/C++ programs
-
-# executable name
+# Executable name
 EXE = app
 
 # C compiler
 CC = gcc
 # C++ compiler
 CXX = g++
-# linker
+# Linker
 LD = g++
 
 # C flags
@@ -18,36 +13,43 @@ CFLAGS =
 # C++ flags
 CXXFLAGS = 
 # C/C++ flags
-CPPFLAGS = -Wall
-# dependency-generation flags
-DEPFLAGS = -MMD -MP
-# linker flags
-LDFLAGS = 
-# library flags
-LDLIBS = 
+CPPFLAGS = -Wall -g
 
-# build directories
+# SDL3 static linking
+SDL3_CFLAGS = -I/usr/local/include/SDL3
+SDL3_LIBS = /usr/local/lib/libSDL3.a -lm -ldl -lpthread
+CPPFLAGS += $(SDL3_CFLAGS)
+LDLIBS += /usr/local/lib/libSDL3.a -lm -ldl -lpthread -lX11 -lXext -lXcursor -lXrandr -lXinerama -lXi
+
+
+# Dependency generation flags
+DEPFLAGS = -MMD -MP
+# Linker flags
+LDFLAGS = 
+
+# Build directories
 BIN = bin
 OBJ = obj
 SRC = src
 
-SOURCES := $(wildcard $(SRC)/*.c $(SRC)/*.cc $(SRC)/*.cpp $(SRC)/*.cxx)
+# Find all source files recursively
+SOURCES := $(shell find $(SRC) -type f \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" -o -name "*.cxx" \))
 
-OBJECTS := \
-	$(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(wildcard $(SRC)/*.c)) \
-	$(patsubst $(SRC)/%.cc, $(OBJ)/%.o, $(wildcard $(SRC)/*.cc)) \
-	$(patsubst $(SRC)/%.cpp, $(OBJ)/%.o, $(wildcard $(SRC)/*.cpp)) \
-	$(patsubst $(SRC)/%.cxx, $(OBJ)/%.o, $(wildcard $(SRC)/*.cxx))
+# Generate object file paths in obj/ with matching directory structure
+OBJECTS := $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(filter %.c, $(SOURCES))) \
+           $(patsubst $(SRC)/%.cc, $(OBJ)/%.o, $(filter %.cc, $(SOURCES))) \
+           $(patsubst $(SRC)/%.cpp, $(OBJ)/%.o, $(filter %.cpp, $(SOURCES))) \
+           $(patsubst $(SRC)/%.cxx, $(OBJ)/%.o, $(filter %.cxx, $(SOURCES)))
 
-# include compiler-generated dependency rules
+# Include compiler-generated dependency rules
 DEPENDS := $(OBJECTS:.o=.d)
 
-# compile C source
+# Compile C source
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) -c -o $@
-# compile C++ source
+# Compile C++ source
 COMPILE.cxx = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) -c -o $@
-# link objects
-LINK.o = $(LD) $(LDFLAGS) $(LDLIBS) $(OBJECTS) -o $@
+# Link objects
+LINK.o = $(LD) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $(BIN)/$(EXE)
 
 .DEFAULT_GOAL = all
 
@@ -66,39 +68,43 @@ $(OBJ):
 $(BIN):
 	mkdir -p $(BIN)
 
-$(OBJ)/%.o:	$(SRC)/%.c
+# Ensure obj directory structure mirrors src
+$(OBJ)/%.o: $(SRC)/%.c
+	@mkdir -p $(dir $@)
 	$(COMPILE.c) $<
 
-$(OBJ)/%.o:	$(SRC)/%.cc
+$(OBJ)/%.o: $(SRC)/%.cc
+	@mkdir -p $(dir $@)
 	$(COMPILE.cxx) $<
 
-$(OBJ)/%.o:	$(SRC)/%.cpp
+$(OBJ)/%.o: $(SRC)/%.cpp
+	@mkdir -p $(dir $@)
 	$(COMPILE.cxx) $<
 
-$(OBJ)/%.o:	$(SRC)/%.cxx
+$(OBJ)/%.o: $(SRC)/%.cxx
+	@mkdir -p $(dir $@)
 	$(COMPILE.cxx) $<
 
-# force rebuild
+# Force rebuild
 .PHONY: remake
-remake:	clean $(BIN)/$(EXE)
+remake: clean $(BIN)/$(EXE)
 
-# execute the program
+# Execute the program
 .PHONY: run
 run: $(BIN)/$(EXE)
 	./$(BIN)/$(EXE)
 
-# remove previous build and objects
+# Remove previous build and objects
 .PHONY: clean
 clean:
 	$(RM) $(OBJECTS)
 	$(RM) $(DEPENDS)
 	$(RM) $(BIN)/$(EXE)
 
-# remove everything except source
+# Remove everything except source
 .PHONY: reset
 reset:
 	$(RM) -r $(OBJ)
 	$(RM) -r $(BIN)
 
 -include $(DEPENDS)
-
