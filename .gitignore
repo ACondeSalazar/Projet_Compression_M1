@@ -1,2 +1,10 @@
 .vscode/
+.cache/
 build/
+CMakeFiles/
+compressed
+decompressed.ppm
+imgui.ini
+CMakeCache.txt
+compile_commands.json
+cmake_install.cmake

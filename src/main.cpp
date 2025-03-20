@@ -19,7 +19,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 
@@ -49,8 +48,8 @@ float posX = 0, posY = 0;
 bool isMovingView = false;
 float mouseX = 0, mouseY = 0;
 
-bool originalInitialized = false;
-bool decompressedInitialized = false;
+bool originalInitialized = false; //si on a charger une image
+bool decompressedInitialized = false; //si on a lancer la compression sur une image
 
 void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Renderer * renderer, SDL_Texture ** texture){ //pointeur vers un pointeur
     int channels;
@@ -179,6 +178,8 @@ int main(int argc, char **argv)
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer3_Init(renderer);
 
+    ImGui::SetNextWindowSize(ImVec2(300,150), ImGuiCond_Once);
+
     bool quit = false;
     SDL_Event event;
 
@@ -276,10 +277,10 @@ int main(int argc, char **argv)
 
         if (ImGui::Button("Choisir image")) {
             IGFD::FileDialogConfig config;
-            config.path = "../";
+            config.path = ".";
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ppm", config);
         }
-
+        ImGui::SetNextWindowSize(ImVec2(800,500), ImGuiCond_Once);
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
             if (ImGuiFileDialog::Instance()->IsOk()) { 
                 std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
