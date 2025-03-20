@@ -13,7 +13,6 @@ __pycache__
 *.obj
 *.res
 *.lib
-*.a
 *.la
 *.dSYM
 *,e1f

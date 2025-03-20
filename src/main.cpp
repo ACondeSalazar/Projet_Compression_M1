@@ -16,6 +16,8 @@
 
 #include "ImGuiFileDialog.h"
 
+#include <chrono>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -50,6 +52,10 @@ float mouseX = 0, mouseY = 0;
 
 bool originalInitialized = false; //si on a charger une image
 bool decompressedInitialized = false; //si on a lancer la compression sur une image
+
+
+std::chrono::duration<double> compressionTime;
+std::chrono::duration<double> decompressionTime;
 
 void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Renderer * renderer, SDL_Texture ** texture){ //pointeur vers un pointeur
     int channels;
@@ -92,20 +98,68 @@ void compressJPEG(SDL_Renderer * renderer){
         std::cout << "Erreur : aucun fichier selectionné" << std::endl;
         return; 
     }
+    //compression
+    auto startTime = std::chrono::high_resolution_clock::now();
+
     compression(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
 
+    compressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    //taux de compression
     sizeOriginal = getFileSize(originalFilePathName);
     sizeCompressed = getFileSize(compressedFilePathName);
     tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
 
+    //decompression
+    startTime = std::chrono::high_resolution_clock::now();
+
     decompression(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
     std::cout << "finished decompression" << std::endl;
 
+    decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    //affichage
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
+    //psnr
     ImageBase imOut2;
     imOut2.load(decompressedFilePathName.data());
+    psnr = PSNR(imgOriginal, imOut2);
 
+    decompressedInitialized = true;
+}
+
+void compressJPEGFast(SDL_Renderer * renderer){
+    if (originalFilePathName == "") {
+        std::cout << "Erreur : aucun fichier selectionné" << std::endl;
+        return; 
+    }
+    //compression
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    compression_fast(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
+
+    compressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    //taux de compression
+    sizeOriginal = getFileSize(originalFilePathName);
+    sizeCompressed = getFileSize(compressedFilePathName);
+    tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
+
+    //decompression
+    startTime = std::chrono::high_resolution_clock::now();
+
+    decompression(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
+    std::cout << "finished decompression" << std::endl;
+
+    decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    //affichage
+    LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
+
+    //psnr
+    ImageBase imOut2;
+    imOut2.load(decompressedFilePathName.data());
     psnr = PSNR(imgOriginal, imOut2);
 
     decompressedInitialized = true;
@@ -116,14 +170,24 @@ void compressJPEG2000(SDL_Renderer * renderer){
         std::cout << "Erreur : aucun fichier selectionné" << std::endl;
         return; 
     }
+
+    //compression
+    auto startTime = std::chrono::high_resolution_clock::now();
     compression2000(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
+
+    compressionTime = std::chrono::high_resolution_clock::now() - startTime;
 
     sizeOriginal = getFileSize(originalFilePathName);
     sizeCompressed = getFileSize(compressedFilePathName);
     tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
 
+    //decompression
+    startTime = std::chrono::high_resolution_clock::now();
+
     decompression2000(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
     std::cout << "finished decompression" << std::endl;
+
+    decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
 
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
@@ -259,6 +323,10 @@ int main(int argc, char **argv)
             if(ImGui::Button("Compression JPEG like")){
                 compressJPEG(renderer);
             }
+
+            if(ImGui::Button("Compression JPEG Faster")){
+                compressJPEGFast(renderer);
+            }
     
             if(ImGui::Button("Compression JPEG2000 like")){
                 compressJPEG2000(renderer);
@@ -272,6 +340,8 @@ int main(int argc, char **argv)
         if(decompressedInitialized){
             ImGui::Text("Taux de compression : %f", tauxCompression);
             ImGui::Text("PSNR : %f", psnr);
+            ImGui::Text("Temps compression : %.3f seconds", compressionTime.count());
+            ImGui::Text("Temps decompression : %.3f seconds", decompressionTime.count());
         }
 
         

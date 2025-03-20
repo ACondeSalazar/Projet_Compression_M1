@@ -28,6 +28,8 @@ void inverse_quantification (Block & block);
 
 void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn);
 
+void compression_fast( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn);
+
 void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std::vector<Block> & blocks);
 
 void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut);
