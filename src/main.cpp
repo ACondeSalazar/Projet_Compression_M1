@@ -178,7 +178,7 @@ int main(int argc, char **argv)
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer3_Init(renderer);
 
-    ImGui::SetNextWindowSize(ImVec2(300,150), ImGuiCond_Once);
+    
 
     bool quit = false;
     SDL_Event event;
@@ -243,6 +243,8 @@ int main(int argc, char **argv)
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
+
+        ImGui::SetNextWindowSize(ImVec2(350,300), ImGuiCond_Once);
 
         ImGui::Begin("Compression");
 

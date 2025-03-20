@@ -2,8 +2,6 @@
 .cache/
 build/
 CMakeFiles/
-compressed
-decompressed.ppm
 imgui.ini
 CMakeCache.txt
 compile_commands.json
