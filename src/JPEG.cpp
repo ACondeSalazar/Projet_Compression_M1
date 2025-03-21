@@ -291,149 +291,6 @@ void inverse_quantification (Block & block){
 
 void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 
-    printf("Opening image : %s\n", cNomImgLue);
-
-    imIn.load(cNomImgLue);
-
-    //Transformation des couleurs
-    printf("Transformation de l'espace couleur");
-    ImageBase imY(imIn.getWidth(), imIn.getHeight(), false);
-    ImageBase imCb(imIn.getWidth(), imIn.getHeight(), false);
-    ImageBase imCr(imIn.getWidth(), imIn.getHeight(), false);
-
-    RGB_to_YCbCr(imIn, imY, imCb, imCr);
-
-    //imY.save("./img/out/Y.pgm");
-    //imCb.save("./img/out/Cb.pgm");
-    //imCr.save("./img/out/Cr.pgm");
-
-    printf("  Fini\n");
-    //Sous échantillonage
-    printf("Sous échantillonage de Cb et Cr \n");
-
-    printf("Flou Gaussien sur Cr et Cb");
-    ImageBase imCbFlou(imIn.getWidth(), imIn.getHeight(), false);
-    ImageBase imCrFlou(imIn.getWidth(), imIn.getHeight(), false);
-
-    gaussianBlur(imCb,imCbFlou); //fonction dans Utils.h
-    gaussianBlur(imCr,imCrFlou);
-
-
-    ImageBase downSampledCb(imIn.getWidth() / 2, imIn.getHeight() /2, false);
-    ImageBase downSampledCr(imIn.getWidth() / 2, imIn.getHeight() /2, false);
-
-
-    down_sampling_bilinear(imCbFlou, downSampledCb);
-    down_sampling_bilinear(imCrFlou, downSampledCr);
-
-    //downSampledCb.save("./img/out/downSampledCb.pgm");
-    //downSampledCr.save("./img/out/downSampledCr.pgm");
-
-    printf("  Fini\n");
-
-    //Découpage en blocs de pixel
-    printf("Découpage en blocs de pixel \n");
-    std::vector<Block> blocksY = getBlocks(imY, 8);
-    std::vector<Block> blocksCb = getBlocks(downSampledCb, 8);
-    std::vector<Block> blocksCr = getBlocks(downSampledCr, 8);
-
-    printf("number of blocks for Y channel: %d\n", blocksY.size());
-    printf("number of blocks for Cb channel: %d\n", blocksCb.size());
-    printf("number of blocks for Cr channel: %d\n", blocksCr.size());
-
-    printf("  Fini\n");
-
-    printf("DCT et quantification ");
-
-    for(Block & block : blocksY){// pour chaque bloc : on fait la DCT, on quantifie le résultat de la DCT et on applatit la matrice de DCT
-        DCT(block);
-        quantification(block);
-        flattenZigZag(block);
-    }
-
-    for(Block & block : blocksCb){
-        DCT(block);
-        quantification(block);
-        flattenZigZag(block);
-    }
-
-    for(Block & block : blocksCr){
-        DCT(block);
-        quantification(block);
-        flattenZigZag(block);
-    }
-
-    printf("  Fini\n");
-
-
-    printf("Codage RLE \n");
-
-    std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
-    std::vector<std::pair<int,int>> blocksCbRLE;
-    std::vector<std::pair<int,int>> blocksCrRLE;
-
-    for(Block & block : blocksY){// pour chaque bloc : on compresse la matrice applati
-        std::vector<std::pair<int,int>> RLEBlock;
-
-        RLECompression(block.flatDctMatrix,RLEBlock);
-
-        blocksYRLE.insert(blocksYRLE.end(), RLEBlock.begin(), RLEBlock.end());
-    }
-
-    rlecompression = blocksYRLE;
-
-    std::cout << "blocksY RLE size : " << blocksYRLE.size() << std::endl; 
-
-    for(Block & block : blocksCb){
-        std::vector<std::pair<int,int>> RLEBlock;
-
-        RLECompression(block.flatDctMatrix,RLEBlock);
-
-        blocksCbRLE.insert(blocksCbRLE.end(), RLEBlock.begin(), RLEBlock.end());
-    }
-
-    for(Block & block : blocksCr){
-        std::vector<std::pair<int,int>> RLEBlock;
-
-        RLECompression(block.flatDctMatrix,RLEBlock);
-
-        blocksCrRLE.insert(blocksCrRLE.end(), RLEBlock.begin(), RLEBlock.end());
-    }
-
-    //std::cout<<"size blocksRLE "<<blocksYRLE.size()<<" "<<blocksCbRLE.size()<<" "<<blocksCrRLE.size()<<std::endl;
-
-
-    std::vector<std::pair<int, int>> allBlocksRLE; //on fusionne les 3 canaux
-    allBlocksRLE.insert(allBlocksRLE.end(), blocksYRLE.begin(), blocksYRLE.end());
-    allBlocksRLE.insert(allBlocksRLE.end(), blocksCbRLE.begin(), blocksCbRLE.end());
-    allBlocksRLE.insert(allBlocksRLE.end(), blocksCrRLE.begin(), blocksCrRLE.end());
-
-
-    printf("  Fini\n");
-
-    printf("Huffman encoding ");
-
-    std::vector<huffmanCodeSingle> codeTable;
-
-    //on cree la table de codage
-    HuffmanEncoding(allBlocksRLE, codeTable);
-
-    printf("Code table size: %lu\n", codeTable.size());
-
-    printf("  Fini\n");
-
-    std::string outFileName = cNomImgOut;
-
-    //on ecrit le fichier huffman encodé
-    writeHuffmanEncoded(allBlocksRLE, codeTable,
-                        imIn.getWidth(), imIn.getHeight(), downSampledCb.getWidth(), downSampledCb.getHeight() ,
-                        blocksYRLE.size(), blocksCbRLE.size(),blocksCrRLE.size(),
-                        outFileName);
-
-}
-
-void compression_fast( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
-
     std::vector<std::thread> threads;
 
     printf("Opening image : %s\n", cNomImgLue);
@@ -448,9 +305,9 @@ void compression_fast( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 
     RGB_to_YCbCr(imIn, imY, imCb, imCr);
 
-    //imY.save("./img/out/Y.pgm");
-    //imCb.save("./img/out/Cb.pgm");
-    //imCr.save("./img/out/Cr.pgm");
+    imY.save("./img/out/Y.pgm");
+    imCb.save("./img/out/Cb.pgm");
+    imCr.save("./img/out/Cr.pgm");
 
     printf("  Fini\n");
     //Sous échantillonage
@@ -471,8 +328,8 @@ void compression_fast( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     down_sampling_bilinear(imCbFlou, downSampledCb);
     down_sampling_bilinear(imCrFlou, downSampledCr);
 
-    //downSampledCb.save("./img/out/downSampledCb.pgm");
-    //downSampledCr.save("./img/out/downSampledCr.pgm");
+    downSampledCb.save("./img/out/downSampledCb.pgm");
+    downSampledCr.save("./img/out/downSampledCr.pgm");
 
     printf("  Fini\n");
 
@@ -606,8 +463,6 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
     int currentRLEIndex = 0;
     int currentBlockProgress = 0;
-
-    int nbBlockProgress = 0;
     
     while(currentRLEIndex < encodedRLE.size()){
         Block currentBlock(8);
@@ -616,7 +471,6 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
         //tant que on a pas fini le bloc on lit des RLE
         while(currentBlockProgress < 64){
 
-            
 
             currentBlockRLE.push_back(encodedRLE[currentRLEIndex]);
             
@@ -631,8 +485,6 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
             //if(currentRLEIndex >= encodedRLE.size()) {std::cout << "ERROR" << std::endl; return;}
             
         }
-
-        nbBlockProgress++;
 
         //on inverse les operations de la compression
 
@@ -652,155 +504,8 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
 }
 
+
 void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut){
-    
-    printf("Decompression\n");
-
-    std::string outFileName = cNomImgIn;
-    std::vector<huffmanCodeSingle> codeTable;
-    std::vector<std::pair<int, int>> BlocksRLEEncoded;
-
-    int imageWidth, imageHeight;
-    int downSampledWidth, downSampledHeight;
-    int channelYRLESize, channelCbRLESize, channelCrRLESize;
-    
-
-
-
-    printf("Reading huffman encoded file\n");
-
-    readHuffmanEncoded(outFileName,
-                        codeTable, BlocksRLEEncoded,
-                        imageWidth, imageHeight, downSampledWidth, downSampledHeight,
-                        channelYRLESize, channelCbRLESize, channelCrRLESize);
-
-    std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
-
-    printf("Code table size: %lu\n", codeTable.size());
-
-    std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
-    std::vector<std::pair<int,int>> blocksCbRLE;
-    std::vector<std::pair<int,int>> blocksCrRLE;
-
-    //on sépare les 3 canaux
-    for (int i = 0; i < channelYRLESize; i++) {
-        blocksYRLE.push_back(BlocksRLEEncoded[i]);
-    }
-
-    for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
-        blocksCbRLE.push_back(BlocksRLEEncoded[i]);
-    }
-
-    for (int i = channelYRLESize + channelCbRLESize; i < channelYRLESize + channelCbRLESize + channelCrRLESize; i++) {
-        blocksCrRLE.push_back(BlocksRLEEncoded[i]);
-    }
-
-    /* unordered_map<pair<int, int>, huffmanCodeSingle, pair_hash> codeMap;
-        for (const auto& code : codeTable) {
-            codeMap[code.rlePair] = code;
-        }
-
-        printf("RLE Blocks encoded binary : \n");
-        for (const auto& pair : BlocksRLEEncoded) {
-            huffmanCodeSingle code = codeMap[pair];
-            for (int i = code.length - 1; i >= 0; --i) {
-                cout << ((code.code >> i) & 1);
-            }
-            cout << " ";
-        } */
-
-    printf("Blocks decoding\n");
-
-    
-    std::vector<Block> blocksY;
-    std::vector<Block> blocksCb;
-    std::vector<Block> blocksCr;
-
-    decompressBlocksRLE(blocksCbRLE, blocksCb);
-    printf("blocksCb size: %lu\n", blocksCb.size());
-
-    decompressBlocksRLE(blocksCrRLE, blocksCr);
-    printf("blocksCr size: %lu\n", blocksCr.size());
-   
-    decompressBlocksRLE(blocksYRLE, blocksY);
-    printf("blocksY size: %lu\n", blocksY.size()); 
-
-    /* if (rlecompression.size() != rledecompression.size()) {
-        std::cout << "The sizes of rlecompression and rledecompression are not equal." << std::endl;
-    } else {
-        bool areEqual = true;
-        for (size_t i = 0; i < rlecompression.size(); ++i) {
-            if (rlecompression[i] != rledecompression[i]) {
-                std::cout << "Difference found at index " << i << ": "
-                          << "rlecompression = (" << rlecompression[i].first << ", " << rlecompression[i].second << "), "
-                          << "rledecompression = (" << rledecompression[i].first << ", " << rledecompression[i].second << ")" << std::endl;
-                areEqual = false;
-            }
-        }
-        if (areEqual) {
-            std::cout << "All elements of rlecompression and rledecompression are equal." << std::endl;
-        }
-    }
-
-    int sumFirstElements = 0;
-    for (const auto& pair : rledecompression) {
-        sumFirstElements += pair.first;
-    }
-
-    if (sumFirstElements == 64 * 256) {
-        std::cout << "The sum of the first elements of all RLE pairs is equal to 64 * 256." << std::endl;
-    } else {
-        std::cout << "The sum of the first elements of all RLE pairs is not equal to 64 * 256. : " << sumFirstElements << std::endl;
-    } */
-
-    printf("Reconstructing image from blocks\n");
-
-
-    //ImageBase imOut(512, 480, false);
-
-    imOut = new ImageBase(imageWidth, imageHeight, true);
-
-    ImageBase imY(imageWidth, imageHeight, false);
-
-    ImageBase imCb(downSampledWidth, downSampledHeight, false);
-    ImageBase imCr(downSampledWidth, downSampledHeight, false);
-
-    ImageBase upSampledCb(imageWidth, imageHeight, false);
-    ImageBase upSampledCr(imageWidth, imageHeight, false);
-
-    printf("Reconstructing Cb channel\n");
-    reconstructImage(blocksCb, imCb,8);
-    up_sampling(imCb, upSampledCb);
-    upSampledCb.save("./img/out/Cb_decompressed.pgm");
-
-    printf("Reconstructing Cr channel\n");
-    reconstructImage(blocksCr, imCr,8);
-    up_sampling(imCr, upSampledCr);
-    upSampledCr.save("./img/out/Cr_decompressed.pgm");
-
-    
-
-    printf("Reconstructing Y channel\n");
-    reconstructImage(blocksY, imY,8);
-    printf("saving Y channel\n");
-    imY.save("./img/out/Y_decompressed.pgm");
-
-    
-
-
-
-    printf("Reconstructing image from YCbCr\n");
-    YCbCr_to_RGB(imY, upSampledCb, upSampledCr, (*imOut));
-
-    printf("Saving decompressed image\n");
-    std::string cNomImgOutStr = cNomImgOut;
-    (*imOut).save(cNomImgOutStr.data());
-
-
-}
-
-
-void decompression_fast(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut){
     
     printf("Decompression\n");
 
@@ -857,7 +562,7 @@ void decompression_fast(const char * cNomImgIn, const char * cNomImgOut, ImageBa
         printf("Reconstructing Y channel\n");
         reconstructImage(blocksY, imY, 8);
         printf("saving Y channel\n");
-        //imY.save("./img/out/Y_decompressed.pgm");
+        imY.save("./img/out/Y_decompressed.pgm");
     });
 
     threads.emplace_back([&BlocksRLEEncoded, &blocksCbRLE, channelYRLESize, channelCbRLESize, &blocksCb, &imCb, &upSampledCb] {
@@ -871,7 +576,7 @@ void decompression_fast(const char * cNomImgIn, const char * cNomImgOut, ImageBa
         printf("Reconstructing Cb channel\n");
         reconstructImage(blocksCb, imCb, 8);
         up_sampling(imCb, upSampledCb);
-        //upSampledCb.save("./img/out/Cb_decompressed.pgm");
+        upSampledCb.save("./img/out/Cb_decompressed.pgm");
     });
 
     threads.emplace_back([&BlocksRLEEncoded, &blocksCrRLE, channelYRLESize, channelCbRLESize, channelCrRLESize, &blocksCr, &imCr, &upSampledCr] {
@@ -885,7 +590,7 @@ void decompression_fast(const char * cNomImgIn, const char * cNomImgOut, ImageBa
         printf("Reconstructing Cr channel\n");
         reconstructImage(blocksCr, imCr, 8);
         up_sampling(imCr, upSampledCr);
-        //upSampledCr.save("./img/out/Cr_decompressed.pgm");
+        upSampledCr.save("./img/out/Cr_decompressed.pgm");
     });
 
     for (auto &thread : threads) {
