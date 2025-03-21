@@ -34,3 +34,5 @@ void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std
 
 void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut);
 
+void decompression_fast(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut);
+

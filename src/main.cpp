@@ -51,7 +51,7 @@ bool isMovingView = false;
 float mouseX = 0, mouseY = 0;
 
 bool originalInitialized = false; //si on a charger une image
-bool decompressedInitialized = false; //si on a lancer la compression sur une image
+bool decompressedInitialized = false; //si on a lancé la compression sur une image
 
 
 std::chrono::duration<double> compressionTime;
@@ -71,7 +71,7 @@ void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Rend
 
     SDL_UpdateTexture(*texture, NULL, imgData, width * 3);
 
-    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST); //pas de traitement 
 
 
     stbi_image_free(imgData);
@@ -149,7 +149,7 @@ void compressJPEGFast(SDL_Renderer * renderer){
     //decompression
     startTime = std::chrono::high_resolution_clock::now();
 
-    decompression(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
+    decompression_fast(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
     std::cout << "finished decompression" << std::endl;
 
     decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
@@ -400,6 +400,10 @@ int main(int argc, char **argv)
         SDL_RenderPresent(renderer);
     }
 
+    delete imgDecompressed;
+
+    SDL_DestroyTexture(textureOriginal);
+    SDL_DestroyTexture(textureDecompressed);
 
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();

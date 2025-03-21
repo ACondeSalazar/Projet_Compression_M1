@@ -663,10 +663,7 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     int imageWidth, imageHeight;
     int downSampledWidth, downSampledHeight;
     int channelYRLESize, channelCbRLESize, channelCrRLESize;
-
-    std::vector<std::thread> threads;
-
-    int maxThreads = std::thread::hardware_concurrency();
+    
 
 
 
@@ -719,24 +716,14 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     std::vector<Block> blocksCb;
     std::vector<Block> blocksCr;
 
-    threads.emplace_back([&blocksCbRLE, &blocksCb] {
-        decompressBlocksRLE(blocksCbRLE, blocksCb);
-        printf("blocksCb size: %lu\n", blocksCb.size());
-    });
+    decompressBlocksRLE(blocksCbRLE, blocksCb);
+    printf("blocksCb size: %lu\n", blocksCb.size());
 
-    threads.emplace_back([&blocksCrRLE, &blocksCr] {
-        decompressBlocksRLE(blocksCrRLE, blocksCr);
-        printf("blocksCr size: %lu\n", blocksCr.size());
-    });
-
-    threads.emplace_back([&blocksYRLE, &blocksY] {
-        decompressBlocksRLE(blocksYRLE, blocksY);
-        printf("blocksY size: %lu\n", blocksY.size());
-    });
-
-    for (auto &thread : threads) {
-        thread.join();
-    }
+    decompressBlocksRLE(blocksCrRLE, blocksCr);
+    printf("blocksCr size: %lu\n", blocksCr.size());
+   
+    decompressBlocksRLE(blocksYRLE, blocksY);
+    printf("blocksY size: %lu\n", blocksY.size()); 
 
     /* if (rlecompression.size() != rledecompression.size()) {
         std::cout << "The sizes of rlecompression and rledecompression are not equal." << std::endl;
@@ -784,22 +771,131 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     printf("Reconstructing Cb channel\n");
     reconstructImage(blocksCb, imCb,8);
     up_sampling(imCb, upSampledCb);
-    //upSampledCb.save("./img/out/Cb_decompressed.pgm");
+    upSampledCb.save("./img/out/Cb_decompressed.pgm");
 
     printf("Reconstructing Cr channel\n");
     reconstructImage(blocksCr, imCr,8);
     up_sampling(imCr, upSampledCr);
-    //upSampledCr.save("./img/out/Cr_decompressed.pgm");
+    upSampledCr.save("./img/out/Cr_decompressed.pgm");
 
     
 
     printf("Reconstructing Y channel\n");
     reconstructImage(blocksY, imY,8);
     printf("saving Y channel\n");
-    //imY.save("./img/out/Y_decompressed.pgm");
+    imY.save("./img/out/Y_decompressed.pgm");
 
     
 
+
+
+    printf("Reconstructing image from YCbCr\n");
+    YCbCr_to_RGB(imY, upSampledCb, upSampledCr, (*imOut));
+
+    printf("Saving decompressed image\n");
+    std::string cNomImgOutStr = cNomImgOut;
+    (*imOut).save(cNomImgOutStr.data());
+
+
+}
+
+
+void decompression_fast(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut){
+    
+    printf("Decompression\n");
+
+    std::string outFileName = cNomImgIn;
+    std::vector<huffmanCodeSingle> codeTable;
+    std::vector<std::pair<int, int>> BlocksRLEEncoded;
+
+    int imageWidth, imageHeight;
+    int downSampledWidth, downSampledHeight;
+    int channelYRLESize, channelCbRLESize, channelCrRLESize;
+
+    std::vector<std::thread> threads;
+
+    int maxThreads = std::thread::hardware_concurrency();
+
+    printf("Reading huffman encoded file\n");
+
+    readHuffmanEncoded(outFileName,
+                        codeTable, BlocksRLEEncoded,
+                        imageWidth, imageHeight, downSampledWidth, downSampledHeight,
+                        channelYRLESize, channelCbRLESize, channelCrRLESize);
+
+    std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
+
+    printf("Code table size: %lu\n", codeTable.size());
+
+    std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
+    std::vector<std::pair<int,int>> blocksCbRLE;
+    std::vector<std::pair<int,int>> blocksCrRLE;
+
+    std::vector<Block> blocksY;
+    std::vector<Block> blocksCb;
+    std::vector<Block> blocksCr;
+
+    imOut = new ImageBase(imageWidth, imageHeight, true);
+
+    ImageBase imY(imageWidth, imageHeight, false);
+
+    ImageBase imCb(downSampledWidth, downSampledHeight, false);
+    ImageBase imCr(downSampledWidth, downSampledHeight, false);
+
+    ImageBase upSampledCb(imageWidth, imageHeight, false);
+    ImageBase upSampledCr(imageWidth, imageHeight, false);
+
+    //on sépare les 3 canaux
+    threads.emplace_back([&BlocksRLEEncoded, &blocksYRLE, channelYRLESize, &blocksY, &imY] {
+        for (int i = 0; i < channelYRLESize; i++) {
+            blocksYRLE.push_back(BlocksRLEEncoded[i]);
+        }
+
+        decompressBlocksRLE(blocksYRLE, blocksY);
+        printf("blocksY size: %lu\n", blocksY.size());
+
+        printf("Reconstructing Y channel\n");
+        reconstructImage(blocksY, imY, 8);
+        printf("saving Y channel\n");
+        //imY.save("./img/out/Y_decompressed.pgm");
+    });
+
+    threads.emplace_back([&BlocksRLEEncoded, &blocksCbRLE, channelYRLESize, channelCbRLESize, &blocksCb, &imCb, &upSampledCb] {
+        for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
+            blocksCbRLE.push_back(BlocksRLEEncoded[i]);
+        }
+
+        decompressBlocksRLE(blocksCbRLE, blocksCb);
+        printf("blocksCb size: %lu\n", blocksCb.size());
+
+        printf("Reconstructing Cb channel\n");
+        reconstructImage(blocksCb, imCb, 8);
+        up_sampling(imCb, upSampledCb);
+        //upSampledCb.save("./img/out/Cb_decompressed.pgm");
+    });
+
+    threads.emplace_back([&BlocksRLEEncoded, &blocksCrRLE, channelYRLESize, channelCbRLESize, channelCrRLESize, &blocksCr, &imCr, &upSampledCr] {
+        for (int i = channelYRLESize + channelCbRLESize; i < channelYRLESize + channelCbRLESize + channelCrRLESize; i++) {
+            blocksCrRLE.push_back(BlocksRLEEncoded[i]);
+        }
+
+        decompressBlocksRLE(blocksCrRLE, blocksCr);
+        printf("blocksCr size: %lu\n", blocksCr.size());
+
+        printf("Reconstructing Cr channel\n");
+        reconstructImage(blocksCr, imCr, 8);
+        up_sampling(imCr, upSampledCr);
+        //upSampledCr.save("./img/out/Cr_decompressed.pgm");
+    });
+
+    for (auto &thread : threads) {
+        thread.join();
+    }
+    threads.clear();
+
+    printf("Blocks decoding\n");
+
+    printf("Reconstructing image from blocks\n");
 
 
     printf("Reconstructing image from YCbCr\n");
