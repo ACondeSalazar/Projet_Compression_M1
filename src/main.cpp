@@ -3,10 +3,10 @@
 #include "JPEG2000.h"
 #include "Utils.h"
 #include <cstddef>
-#include <cstdint>
+
 #include <string>
 #include <iostream>
-#include <vector>
+
 #include <stdio.h>
 #include <filesystem>
 #include <SDL3/SDL.h>
@@ -15,6 +15,8 @@
 #include "backends/imgui_impl_sdlrenderer3.h"
 
 #include "ImGuiFileDialog.h"
+
+#include <chrono>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -49,26 +51,56 @@ bool isMovingView = false;
 float mouseX = 0, mouseY = 0;
 
 bool originalInitialized = false; //si on a charger une image
-bool decompressedInitialized = false; //si on a lancer la compression sur une image
+bool decompressedInitialized = false; //si on a lancé la compression sur une image
+
+
+std::chrono::duration<double> compressionTime;
+std::chrono::duration<double> decompressionTime;
 
 void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Renderer * renderer, SDL_Texture ** texture){ //pointeur vers un pointeur
+    
     int channels;
-    unsigned char * imgData = stbi_load(filePathName.data(), &width, &height, &channels, 0);
+    //si l'image est en .png on convertit en ppm
+    if (filePathName.substr(filePathName.find_last_of(".") + 1) == "png") {
+        unsigned char * imgData = stbi_load(filePathName.c_str(), &width, &height, &channels, 3);
+        if (!imgData) {
+            std::cerr << "impossible de charger l'image " << filePathName << std::endl;
+            return;
+        }
+
+        std::string ppmFilePathName = filePathName.substr(0, filePathName.find_last_of(".")) + ".ppm";
+        FILE *ppmFile = fopen(ppmFilePathName.c_str(), "wb");
+        if (!ppmFile) {
+            std::cerr << "conversion en ppm impossible " << ppmFilePathName << std::endl;
+            stbi_image_free(imgData);
+            return;
+        }
+
+        fprintf(ppmFile, "P6\n%d %d\n255\n", width, height);
+        fwrite(imgData, sizeof(unsigned char), width * height * 3, ppmFile);
+        fclose(ppmFile);
+
+        stbi_image_free(imgData);
+        filePathName = ppmFilePathName; //on met le chemin a jour vers l'image ppm 
+    }
+
+    
+    unsigned char * imgPPMData = stbi_load(filePathName.data(), &width, &height, &channels, 3);
 
     *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, width, height);
 
     if (!texture) {
         SDL_Log("Failed to create texture: %s", SDL_GetError());
-        stbi_image_free(imgData);
+        stbi_image_free(imgPPMData);
         return;
     }
 
-    SDL_UpdateTexture(*texture, NULL, imgData, width * 3);
+    SDL_UpdateTexture(*texture, NULL, imgPPMData, width * 3);
 
-    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST); //pas de traitement 
 
 
-    stbi_image_free(imgData);
+    stbi_image_free(imgPPMData);
 
 }
 
@@ -92,38 +124,61 @@ void compressJPEG(SDL_Renderer * renderer){
         std::cout << "Erreur : aucun fichier selectionné" << std::endl;
         return; 
     }
+    //compression
+    auto startTime = std::chrono::high_resolution_clock::now();
+
     compression(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
 
+    compressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    //taux de compression
     sizeOriginal = getFileSize(originalFilePathName);
     sizeCompressed = getFileSize(compressedFilePathName);
     tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
 
+    //decompression
+    startTime = std::chrono::high_resolution_clock::now();
+
     decompression(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
     std::cout << "finished decompression" << std::endl;
 
+    decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    //affichage
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
+    //psnr
     ImageBase imOut2;
     imOut2.load(decompressedFilePathName.data());
-
     psnr = PSNR(imgOriginal, imOut2);
 
     decompressedInitialized = true;
 }
+
 
 void compressJPEG2000(SDL_Renderer * renderer){
     if (originalFilePathName == "") {
         std::cout << "Erreur : aucun fichier selectionné" << std::endl;
         return; 
     }
+
+    //compression
+    auto startTime = std::chrono::high_resolution_clock::now();
     compression2000(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
+
+    compressionTime = std::chrono::high_resolution_clock::now() - startTime;
 
     sizeOriginal = getFileSize(originalFilePathName);
     sizeCompressed = getFileSize(compressedFilePathName);
     tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
 
+    //decompression
+    startTime = std::chrono::high_resolution_clock::now();
+
     decompression2000(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
     std::cout << "finished decompression" << std::endl;
+
+    decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
 
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
@@ -248,18 +303,23 @@ int main(int argc, char **argv)
 
         ImGui::Begin("Compression");
 
-        ImGui::Text("Click + drag to move around");
-        ImGui::Text("Mouse wheel to zoom in/out");
-        ImGui::Text("R to reset view");
-        ImGui::Text("Original on the left, decompressed on the right");
+        if(ImGui::TreeNode("Help")){
+            ImGui::Text("Click + drag to move around");
+            ImGui::Text("Mouse wheel to zoom in/out");
+            ImGui::Text("R to reset view");
+            ImGui::Text("Original on the left, decompressed on the right");
+            ImGui::TreePop();
+        }
+        
 
         if(originalInitialized){
             ImGui::Text("Path to image : %s", originalFilePathName.c_str());
+            ImGui::Text("Image size : %d x %d", widthOriginal, heightOriginal);
             
             if(ImGui::Button("Compression JPEG like")){
                 compressJPEG(renderer);
             }
-    
+
             if(ImGui::Button("Compression JPEG2000 like")){
                 compressJPEG2000(renderer);
             }
@@ -272,6 +332,17 @@ int main(int argc, char **argv)
         if(decompressedInitialized){
             ImGui::Text("Taux de compression : %f", tauxCompression);
             ImGui::Text("PSNR : %f", psnr);
+
+            if(ImGui::TreeNode("More compression info")){
+                ImGui::Text("De %.0f KB à %.0f KB",  sizeOriginal / 1000.0, sizeCompressed / 1000.0);
+                ImGui::Text("Temps compression : %.3f seconds", compressionTime.count());
+                ImGui::Text("Temps decompression : %.3f seconds", decompressionTime.count());
+
+                ImGui::Text("Path to compressed file : %s", compressedFilePathName.c_str());
+                ImGui::Text("Path to decompressed image : %s", decompressedFilePathName.c_str());
+                ImGui::TreePop();
+            }
+            
         }
 
         
@@ -280,7 +351,7 @@ int main(int argc, char **argv)
         if (ImGui::Button("Choisir image")) {
             IGFD::FileDialogConfig config;
             config.path = ".";
-            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ppm", config);
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ppm, .png", config);
         }
         ImGui::SetNextWindowSize(ImVec2(800,500), ImGuiCond_Once);
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
@@ -330,6 +401,10 @@ int main(int argc, char **argv)
         SDL_RenderPresent(renderer);
     }
 
+    delete imgDecompressed;
+
+    SDL_DestroyTexture(textureOriginal);
+    SDL_DestroyTexture(textureDecompressed);
 
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();

@@ -41,6 +41,10 @@ file(GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
+target_compile_options(${PROJECT_NAME} PRIVATE
+    -O3 -march=native -flto -funroll-loops -DNDEBUG
+)
+
 # Link SDL3 statically
 target_link_libraries(${PROJECT_NAME}
     PRIVATE

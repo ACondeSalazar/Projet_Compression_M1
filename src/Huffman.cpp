@@ -1,11 +1,9 @@
-#pragma once
 #include "Huffman.h"
 #include <vector>
 #include <unordered_map>
 #include <utility>
 #include <algorithm>
 #include <iostream>
-#include <bitset>
 #include <stdint.h>
 #include <fstream>
 
@@ -19,7 +17,7 @@ bool pair_equals(vector<int> pair1, vector<int> pair2){
 
 }
 
-//on trie les éléments par fréquence croissante
+//on trie les éléments par fréquence croissante peut etre trouver plus rapide ?
 void sortTree(vector<TreeNode*> & huffmanTree){
     sort(huffmanTree.begin(), huffmanTree.end(), [](TreeNode* node1, TreeNode* node2) { return node1->frequency < node2->frequency; }); 
 }
@@ -87,7 +85,18 @@ void getEncodingRecursive(TreeNode* node, int code, int length, vector<huffmanCo
     getEncodingRecursive(node->right, (code << 1) | 1, length + 1, codeTable); // (code << 1) | 1 decalage de 1 bit et ajoute 1 a la fin 
 }
 
+//
+void deleteTreeRecursive(TreeNode * node){
 
+    if(node == nullptr){
+        return;
+    }else{
+        deleteTreeRecursive(node->right);
+        deleteTreeRecursive(node->left);
+        delete node;
+    }
+
+}
 
 
 void HuffmanEncoding(vector<pair<int,int>> & RLEData, vector<huffmanCodeSingle> &  codeTable){
@@ -116,9 +125,8 @@ void HuffmanEncoding(vector<pair<int,int>> & RLEData, vector<huffmanCodeSingle> 
 
     getEncodingRecursive(huffmanTree[0], 0, 0, codeTable);
 
-    
-    
 
+    deleteTreeRecursive(huffmanTree[0]);
 }
 
 void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
@@ -156,6 +164,12 @@ void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
     //on ecrit le nombre de RLE
     int numRLE = static_cast<int>(RLEData.size());
     outFile.write(reinterpret_cast<const char*>(&numRLE), sizeof(numRLE));
+
+    //hashmap RLE{frequence, valeur}-> {code, longueur code} 
+    unordered_map<pair<int, int>, pair<int, int>, pair_hash> codeMap; //bien plus rapide pour la lecture après
+    for (auto & entry : codeTable) {
+        codeMap[entry.rlePair] = {entry.code, entry.length};
+    }
     
     //on ecrit les données RLE encodées
     uint8_t bitBuffer = 0;
@@ -171,33 +185,30 @@ void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
             bitsInBuffer = 0;
         }
     };
-    
-    for (const auto& rle : RLEData) {
-        bool found = false;
-        for (const auto& entry : codeTable) {
-            // Match on both frequency and pixel value.
-            if (entry.rlePair.first == rle.first && entry.rlePair.second == rle.second) {
-                int code = entry.code;
-                int length = entry.length;
-                // Write bits from the code, starting with the most significant bit.
-                for (int i = length - 1; i >= 0; i--) {
-                    int bit = (code >> i) & 1;
-                    bitBuffer = (bitBuffer << 1) | bit;
-                    bitsInBuffer++;
-                    if (bitsInBuffer == 8) {
-                        outFile.write(reinterpret_cast<const char*>(&bitBuffer), 1);
-                        bitBuffer = 0;
-                        bitsInBuffer = 0;
-                    }
+
+    for (auto & rle : RLEData) {
+
+        if (auto search = codeMap.find(rle); search != codeMap.end()){
+            //search first = {frequence, pair}, search second = {code, longueur code}
+            int code = search->second.first;
+            int length = search->second.second;
+
+            for (int i = length - 1; i >= 0; i--) {
+                int bit = (code >> i) & 1;
+                bitBuffer = (bitBuffer << 1) | bit;
+                bitsInBuffer++;
+                if (bitsInBuffer == 8) {
+                    outFile.write(reinterpret_cast<const char*>(&bitBuffer), 1);
+                    bitBuffer = 0;
+                    bitsInBuffer = 0;
                 }
-                found = true;
-                break;
             }
+
+        }else{
+            std::cout << "pas de code valide pour le rle : " << rle.first << ", " << rle.second << std::endl;
         }
-        if (!found) {
-            cerr << "Error: No Huffman code found for RLE pair ("
-                 << rle.first << ", " << rle.second << ")" << endl;
-        }
+
+
     }
 
     flushBuffer();
@@ -235,6 +246,9 @@ void readHuffmanEncoded(const string& filename,
     int tableSize = 0;
     inFile.read(reinterpret_cast<char*>(&tableSize), sizeof(tableSize));
     
+    //hashmap {code, longueur code} -> RLE{frequence, valeur}
+    unordered_map<pair<int, int>, pair<int, int>, pair_hash> codeMap; //bien plus rapide pour la lecture après
+
     //On remplit la table
     codeTable.clear();
     for (int i = 0; i < tableSize; i++) {
@@ -243,7 +257,10 @@ void readHuffmanEncoded(const string& filename,
         inFile.read(reinterpret_cast<char*>(&entry.code), sizeof(entry.code));
         inFile.read(reinterpret_cast<char*>(&entry.length), sizeof(entry.length));
         codeTable.push_back(entry);
+
+        codeMap[{entry.code, entry.length}] = entry.rlePair;
     }
+
     
     //On lit le nombre de RLE
     int numRLE = 0;
@@ -252,7 +269,7 @@ void readHuffmanEncoded(const string& filename,
     //on lit bit par bit
     RLEData.clear();
     uint8_t byte = 0;
-    int bitsLeft = 0; // Bits left in the current byte.
+    int bitsLeft = 0;
     
     //chatGPT, permet de lire un seul bit a la fois
     auto readBit = [&]() -> int {
@@ -267,7 +284,7 @@ void readHuffmanEncoded(const string& filename,
         return bit;
     };
     
-    // For each RLE entry, accumulate bits until a matching code is found.
+    //on lit un bit et on regarde si il correspond a un code dans la table, sinon on lit un autre bit qu'on ajoute aux précédents.
     while (static_cast<int>(RLEData.size()) < numRLE) {
         int currentCode = 0;
         int currentLength = 0;
@@ -280,14 +297,14 @@ void readHuffmanEncoded(const string& filename,
             }
             currentCode = (currentCode << 1) | bit;
             currentLength++;
-            // Check if the accumulated bits match any code in the code table.
-            for (const auto& entry : codeTable) {
-                if (entry.length == currentLength && entry.code == currentCode) {
-                    RLEData.push_back(entry.rlePair);
-                    matched = true;
-                    break;
-                }
+            
+            //on cherche si le code est dans la hashmap
+            if (auto search = codeMap.find({currentCode,currentLength}); search != codeMap.end()){
+                RLEData.push_back(search->second); //1ere element la paire (code, longueur code), le deuxieme la paire rle
+                matched = true;
             }
+
+
         }
     }
     
