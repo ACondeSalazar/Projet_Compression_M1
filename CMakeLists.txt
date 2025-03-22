@@ -4,6 +4,8 @@ project(ProjetCompression)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Fetch SDL3 from source and build it with the project
 include(FetchContent)
 
