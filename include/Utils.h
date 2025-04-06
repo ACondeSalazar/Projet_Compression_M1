@@ -4,6 +4,50 @@
 #include <fstream>
 #include "ImageBase.h"
 
+
+enum BlurType{
+    GAUSSIANBLUR,
+    MEDIANBLUR,
+    BILATERALBLUR,
+};
+
+enum ColorFormat{
+    YCBCRFORMAT,
+    YCOCGFORMAT,
+    YUVFORMAT,
+};
+
+enum SamplingType{
+    NORMALSAMPLING,
+    BILENARSAMPLING,
+    BICUBICSAMPLING,
+    LANCZOSSAMPLING,
+};
+
+enum TransformationType{
+    DCTTRANSFORM, //dct classique
+    DWTTRANSFORM, //ondelette
+    INTDCTTRANSFORM, //dct entiere
+    DCTIVTRANSFORM, // dct IV
+};
+
+struct CompressionSettings {
+
+    ColorFormat colorFormat;
+
+    BlurType blurType;
+
+    SamplingType samplingType;
+
+    TransformationType transformationType;
+    int QuantizationFactor;
+
+
+
+
+};
+
+
 struct Block{
 
     Block() : data(8, std::vector<int>(8, 0)), dctMatrix(8, std::vector<double>(8, 0)), flatDctMatrix(64) {}
@@ -14,33 +58,23 @@ struct Block{
     std::vector<std::vector<double>> dctMatrix;
     std::vector<int> flatDctMatrix;
 
-    
+};
 
-    void savePGM( const char * filename) {
-        std::ofstream file(filename, std::ios::out | std::ios::binary);
-        if (!file) {
-            throw std::runtime_error("Cannot open file for writing");
-        }
+struct Tile {
+    std::vector<std::vector<int>> data;
+    int x, y, width, height;
 
-        int height = data.size();
-        int width = data[0].size();
-
-        file << "P5\n" << width << " " << height << "\n255\n";
-
-        for ( auto& row : data) {
-            for (int val : row) {
-                file.put(static_cast<unsigned char>(val));
-            }
-        }
-
-        file.close();
+    Tile(int w, int h, int xPos, int yPos) : width(w), height(h), x(xPos), y(yPos) {
+        data.resize(h, std::vector<int>(w, 0));  // Initialisation
     }
 };
 
 
+void quantification (Block & block);
 
+void inverse_quantification (Block & block);
 
-
+void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std::vector<Block> & blocks, TransformationType transformationType);
 
 void DCT(Block & block);
 

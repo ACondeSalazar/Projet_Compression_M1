@@ -8,14 +8,7 @@
 #include "Huffman.h"
 #include <unordered_map>
 
-struct Tile {
-    std::vector<std::vector<int>> data;
-    int x, y, width, height;
 
-    Tile(int w, int h, int xPos, int yPos) : width(w), height(h), x(xPos), y(yPos) {
-        data.resize(h, std::vector<int>(w, 0));  // Initialisation
-    }
-};
 
 std::vector<Tile> getTiles(ImageBase &imIn, int tileSize);
 

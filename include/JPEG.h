@@ -3,10 +3,6 @@
 #include "Utils.h"
 #include "ImageBase.h"
 #include <vector>
-#include <fstream>
-#include "RLE.h"
-#include "Huffman.h"
-#include <unordered_map>
 
 void RGB_to_YCbCr(ImageBase & imIn, ImageBase & Y, ImageBase & Cb, ImageBase & Cr);
 
@@ -22,13 +18,7 @@ std::vector<Block> getBlocks(ImageBase & imIn, int blockSize = 8);
 
 void reconstructImage(std::vector<Block> & blocks, ImageBase & imIn, int blocksize);
 
-void quantification (Block & block);
-
-void inverse_quantification (Block & block);
-
 void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn);
-
-void decompressBlocksRLE(const std::vector<std::pair<int,int>> & encodedRLE, std::vector<Block> & blocks);
 
 void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut);
 
