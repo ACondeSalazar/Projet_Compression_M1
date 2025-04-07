@@ -1,7 +1,10 @@
 #include "ImageBase.h"
+#include "Utils.h"
+#include "FlexibleCompression.h"
 #include "JPEG.h"
 #include "JPEG2000.h"
-#include "Utils.h"
+
+
 #include <cstddef>
 
 #include <string>
@@ -21,8 +24,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+const int SCREEN_WIDTH = 1920;
+const int SCREEN_HEIGHT = 1080;
 
 ImageBase imgOriginal;
 ImageBase * imgDecompressed;
@@ -35,7 +38,7 @@ float psnr = -1;
 
 
 std::string originalFilePathName = "";
-std::string compressedFilePathName = "./compressed";
+std::string compressedFilePathName = "./compressed.img";
 std::string decompressedFilePathName = "./decompressed.ppm";
 
 SDL_Texture * textureOriginal;
@@ -56,6 +59,9 @@ bool decompressedInitialized = false; //si on a lancé la compression sur une im
 
 std::chrono::duration<double> compressionTime;
 std::chrono::duration<double> decompressionTime;
+
+CompressionSettings customCompressionSettings;
+
 
 void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Renderer * renderer, SDL_Texture ** texture){ //pointeur vers un pointeur
     
@@ -119,7 +125,7 @@ void resetView(){
     
 }
 
-void compressJPEG(SDL_Renderer * renderer){
+void compressJPEGInterface(SDL_Renderer * renderer){
     if (originalFilePathName == "") {
         std::cout << "Erreur : aucun fichier selectionné" << std::endl;
         return; 
@@ -127,7 +133,7 @@ void compressJPEG(SDL_Renderer * renderer){
     //compression
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    compression(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
+    compression(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal, customCompressionSettings);
 
     compressionTime = std::chrono::high_resolution_clock::now() - startTime;
 
@@ -139,7 +145,7 @@ void compressJPEG(SDL_Renderer * renderer){
     //decompression
     startTime = std::chrono::high_resolution_clock::now();
 
-    decompression(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
+    decompression(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, customCompressionSettings);
     std::cout << "finished decompression" << std::endl;
 
     decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
@@ -156,7 +162,7 @@ void compressJPEG(SDL_Renderer * renderer){
 }
 
 
-void compressJPEG2000(SDL_Renderer * renderer){
+void compressJPEG2000Interface(SDL_Renderer * renderer){
     if (originalFilePathName == "") {
         std::cout << "Erreur : aucun fichier selectionné" << std::endl;
         return; 
@@ -164,7 +170,7 @@ void compressJPEG2000(SDL_Renderer * renderer){
 
     //compression
     auto startTime = std::chrono::high_resolution_clock::now();
-    compression2000(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal);
+    compression2000(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal, customCompressionSettings);
 
     compressionTime = std::chrono::high_resolution_clock::now() - startTime;
 
@@ -175,7 +181,48 @@ void compressJPEG2000(SDL_Renderer * renderer){
     //decompression
     startTime = std::chrono::high_resolution_clock::now();
 
-    decompression2000(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed);
+    decompression2000(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, customCompressionSettings);
+    std::cout << "finished decompression" << std::endl;
+
+    decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
+
+    ImageBase imOut2;
+    imOut2.load(decompressedFilePathName.data());
+
+    psnr = PSNR(imgOriginal, imOut2);
+
+    decompressedInitialized = true;
+}
+
+void compressFlexInterface(SDL_Renderer * renderer){
+    if (originalFilePathName == "") {
+        std::cout << "Erreur : aucun fichier selectionné" << std::endl;
+        return; 
+    }
+
+    //compression
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    /* customCompressionSettings.colorFormat = YCBCRFORMAT;
+    customCompressionSettings.blurType = GAUSSIANBLUR;
+    customCompressionSettings.samplingType = BILENARSAMPLING;
+    customCompressionSettings.transformationType = DCTTRANSFORM;
+    customCompressionSettings.QuantizationFactor = 50; */
+
+    compressionFlex(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal, customCompressionSettings);
+
+    compressionTime = std::chrono::high_resolution_clock::now() - startTime;
+
+    sizeOriginal = getFileSize(originalFilePathName);
+    sizeCompressed = getFileSize(compressedFilePathName);
+    tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
+
+    //decompression
+    startTime = std::chrono::high_resolution_clock::now();
+
+    decompressionFlex(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, customCompressionSettings);
     std::cout << "finished decompression" << std::endl;
 
     decompressionTime = std::chrono::high_resolution_clock::now() - startTime;
@@ -192,7 +239,11 @@ void compressJPEG2000(SDL_Renderer * renderer){
 
 int main(int argc, char **argv)
 {   
-    
+    customCompressionSettings.colorFormat = YCBCRFORMAT;
+    customCompressionSettings.blurType = GAUSSIANBLUR;
+    customCompressionSettings.samplingType = BILENARSAMPLING;
+    customCompressionSettings.transformationType = DCTTRANSFORM;
+    customCompressionSettings.QuantizationFactor = 100;
 
     namespace fs = std::filesystem;
 
@@ -304,25 +355,40 @@ int main(int argc, char **argv)
         ImGui::Begin("Compression");
 
         if(ImGui::TreeNode("Help")){
-            ImGui::Text("Click + drag to move around");
-            ImGui::Text("Mouse wheel to zoom in/out");
-            ImGui::Text("R to reset view");
-            ImGui::Text("Original on the left, decompressed on the right");
+            ImGui::Text("Clique + mouvement : déplacement");
+            ImGui::Text("Molette : zoom");
+            ImGui::Text("R : réinitialiser la vue");
+            ImGui::Text("Image Originale à gauche et image compressée à droite");
             ImGui::TreePop();
         }
         
 
         if(originalInitialized){
-            ImGui::Text("Path to image : %s", originalFilePathName.c_str());
-            ImGui::Text("Image size : %d x %d", widthOriginal, heightOriginal);
+            ImGui::Text("Chemin vers l'image : %s", originalFilePathName.c_str());
+            ImGui::Text("Taille Image : %d x %d", widthOriginal, heightOriginal);
             
             if(ImGui::Button("Compression JPEG like")){
-                compressJPEG(renderer);
+                compressJPEGInterface(renderer);
             }
 
             if(ImGui::Button("Compression JPEG2000 like")){
-                compressJPEG2000(renderer);
+                compressJPEG2000Interface(renderer);
             }
+
+            if(ImGui::Button("Compression custom")){
+                compressFlexInterface(renderer);
+            }
+
+            ImGui::Combo("Format couleur", (int *)&customCompressionSettings.colorFormat, "YCBCR\0YCOCG\0YUV(implementer)\0");
+            ImGui::Combo("Type flou", (int *)&customCompressionSettings.blurType, "Gaussian\0Median\0Bilateral\0");
+            ImGui::Combo("Type sampling", (int *)&customCompressionSettings.samplingType, "Normal\0Bilinear\0Bicubic (implementer)\0Lanczos(implémenter)\0");
+            ImGui::Combo("Type transformation", (int *)&customCompressionSettings.transformationType, "DCT\0DWT\0INTDCT(implementer?)\0DCTIV(implementer?)\0");
+            if (customCompressionSettings.transformationType == DWTTRANSFORM) {
+                ImGui::InputInt("Tile Width", &customCompressionSettings.tileWidth);
+                ImGui::InputInt("Tile Height", &customCompressionSettings.tileHeight);
+            }
+            ImGui::SliderInt("Qualité", &customCompressionSettings.QuantizationFactor, 1, 100);
+
         
         }
 
@@ -338,8 +404,8 @@ int main(int argc, char **argv)
                 ImGui::Text("Temps compression : %.3f seconds", compressionTime.count());
                 ImGui::Text("Temps decompression : %.3f seconds", decompressionTime.count());
 
-                ImGui::Text("Path to compressed file : %s", compressedFilePathName.c_str());
-                ImGui::Text("Path to decompressed image : %s", decompressedFilePathName.c_str());
+                ImGui::Text("Chemin fichier compressé: %s", compressedFilePathName.c_str());
+                ImGui::Text("Chemin image decompressé: %s", decompressedFilePathName.c_str());
                 ImGui::TreePop();
             }
             

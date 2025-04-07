@@ -1,4 +1,5 @@
 #include "Huffman.h"
+#include "Utils.h"
 #include <vector>
 #include <unordered_map>
 #include <utility>
@@ -133,12 +134,15 @@ void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
                          vector<huffmanCodeSingle>& codeTable,
                          int width, int height, int downSampledWidth, int downSampledHeight,
                          int channelYSize, int channelCbSize, int channelCrSize,
-                         const string& filename) {
+                         const string& filename, CompressionSettings & settings) {
     ofstream outFile(filename, ios::binary);
     if (!outFile) {
         cerr << "Error opening file for writing huffman encoded data!" << endl;
         return;
     }
+
+
+    outFile.write(reinterpret_cast<const char*>(&settings), sizeof(settings));
 
     //on ecrit la taille de l'image
     outFile.write(reinterpret_cast<const char*>(&width), sizeof(width));
@@ -224,12 +228,14 @@ void readHuffmanEncoded(const string& filename,
                         vector<huffmanCodeSingle>& codeTable,
                         vector<pair<int, int>>& RLEData,
                         int & width, int & height, int & downSampledWidth, int & downSampledHeight,
-                        int & channelYSize, int & channelCbSize, int & channelCrSize) {
+                        int & channelYSize, int & channelCbSize, int & channelCrSize, CompressionSettings & settings) {
     ifstream inFile(filename, ios::binary);
     if (!inFile) {
         cerr << "Error opening file for reading!" << endl;
         return;
     }
+
+    inFile.read(reinterpret_cast<char*>(&settings), sizeof(settings));
 
     //On lit la taille de l'image
     inFile.read(reinterpret_cast<char*>(&width), sizeof(width));

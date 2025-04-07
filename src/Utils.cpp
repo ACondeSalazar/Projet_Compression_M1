@@ -1,5 +1,7 @@
 
 #include "Utils.h"
+
+#include <iostream>
 #include <vector>
 #include <math.h>
 #include <fstream>
@@ -8,58 +10,6 @@
 
 
 
-void DCT(Block & block){
-
-    double PI = 3.14159265358979323846;
-    //PI = M_PI;
-
-
-    int N = block.data.size();
-
-    double mul = PI / (2 * N); // petite optimisation
-    const double inv_sqrt2 = 1.0 / sqrt(2.0); //micro opti
-
-    for (int u = 0; u < N; u++){
-        for (int v = 0; v < N; v++){ //pour chaque fréquence
-            double sum = 0;
-            for (int x = 0; x < N; x++){
-                for (int y = 0; y < N; y++){
-
-                    sum += block.data[x][y] * cos((2 * x + 1) * u * mul) * cos((2 * y + 1) * v * mul);
-                
-                }
-            }
-            double Cu = (u == 0) ? inv_sqrt2 : 1;
-            double Cv = (v == 0) ? inv_sqrt2 : 1;
-            block.dctMatrix[u][v] = 0.25 * Cu * Cv * sum;
-        }
-    }
-}
-
-void IDCT(Block & block) {
-    double PI = 3.14159265358979323846;
-    
-    int N = block.dctMatrix.size();
-
-    double mul = PI / (2 * N); // petite optimisation
-    const double inv_sqrt2 = 1.0 / sqrt(2.0); //micro opti
-
-    for (int x = 0; x < N; x++) {
-        for (int y = 0; y < N; y++) { // reconstruct pixel values
-            double sum = 0;
-            for (int u = 0; u < N; u++) {
-                for (int v = 0; v < N; v++) {
-                    
-                    double Cu = (u == 0) ? inv_sqrt2 : 1.0;
-                    double Cv = (v == 0) ? inv_sqrt2 : 1.0;
-                    
-                    sum += Cu * Cv * block.dctMatrix[u][v] * cos((2 * x + 1) * u * mul) * cos((2 * y + 1) * v * mul);
-                }
-            }
-            block.data[x][y] = 0.25 * sum;
-        }
-    }
-}
 
 
 //tableau qui permet de parcourir la dctMatrix dans l'ordre zigzag, si on veut des bloc de taille != 8, il faudra trouver un algo pour générer ce tableau
@@ -106,38 +56,7 @@ float PSNR(ImageBase & im1, ImageBase & im2){
 }
 
 
-void gaussianBlur(ImageBase &imIn, ImageBase &imOut) {
-    int width = imIn.getWidth();
-    int height = imIn.getHeight();
 
-    // Filtre gaussien 3x3 (sigma ≈ 1)
-    std::vector<std::vector<int>> kernel = {
-        {1, 2, 1},
-        {2, 4, 2},
-        {1, 2, 1}
-    };
-
-    int kernelSum = 16; // Somme du noyau gaussien
-
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            int sum = 0;
-
-            if(i == 0 || j == 0 || i == height - 1 || j == width -1){
-                imOut[i][j] = imIn[i][j];
-                continue;
-            }
-
-            for (int ki = -1; ki <= 1; ki++) {
-                for (int kj = -1; kj <= 1; kj++) {
-                    sum += imIn[i + ki][j + kj] * kernel[ki + 1][kj + 1];
-                }
-            }
-
-            imOut[i][j] = sum / kernelSum;
-        }
-    }
-}
 
 long getFileSize(const std::string& filePath) {
     std::ifstream file(filePath, std::ios::binary | std::ios::ate); 

@@ -1,15 +1,19 @@
 #pragma once
-#include "JPEG.h"
-#include "Utils.h"
-#include "ImageBase.h"
-#include <vector>
-#include <fstream>
-
-#include "RLE.h"
-#include "Huffman.h"
-#include <unordered_map>
 
 #include "JPEG2000.h"
+
+#include "ImageBase.h"
+#include <vector>
+#include <string>
+
+#include "Utils.h"
+#include "FormatSamplingBlur.h"
+#include "TransformationQuantification.h"
+#include "RLE.h"
+#include "Huffman.h"
+
+#include <iostream>
+
 
 int tilewidth = 120;
 int tileHeight = 135;
@@ -120,167 +124,14 @@ void inverseWaveletTransformToTiles(std::vector<Tile>& tiles) {
     }
 }
 //==========================================================================================================================
-void apply53(std::vector<std::vector<int>>& data) {
-    int height = data.size();
-    int width = data[0].size();
 
-    // Appliquer la transformée sur les lignes
-    for (int y = 0; y < height; ++y) {
-        // Étape de prédiction (lifting)
-        for (int x = 1; x < width - 1; x += 2) {
-            data[y][x] -= (data[y][x - 1] + data[y][x + 1] + 1) / 2;
-        }
-        // Étape de mise à jour
-        for (int x = 0; x < width; x += 2) {
-            if (x == 0) {
-                data[y][x] += (data[y][x + 1] + 1) / 2;
-            } else if (x == width - 1) {
-                data[y][x] += (data[y][x - 1] + 1) / 2;
-            } else {
-                data[y][x] += (data[y][x - 1] + data[y][x + 1] + 2) / 4;
-            }
-        }
-    }
-
-    // Appliquer la transformée sur les colonnes
-    for (int x = 0; x < width; ++x) {
-        // Étape de prédiction (lifting)
-        for (int y = 1; y < height - 1; y += 2) {
-            data[y][x] -= (data[y - 1][x] + data[y + 1][x] + 1) / 2;
-        }
-        // Étape de mise à jour
-        for (int y = 0; y < height; y += 2) {
-            if (y == 0) {
-                data[y][x] += (data[y + 1][x] + 1) / 2;
-            } else if (y == height - 1) {
-                data[y][x] += (data[y - 1][x] + 1) / 2;
-            } else {
-                data[y][x] += (data[y - 1][x] + data[y + 1][x] + 2) / 4;
-            }
-        }
-    }
-}
-
-// Appliquer la transformée inverse en ondelettes 5/3 sur une matrice 2D
-void inverse53(std::vector<std::vector<int>>& data) {
-    int height = data.size();
-    int width = data[0].size();
-
-    // Appliquer l'inverse sur les colonnes
-    for (int x = 0; x < width; ++x) {
-        // Étape de mise à jour inverse
-        for (int y = 0; y < height; y += 2) {
-            if (y == 0) {
-                data[y][x] -= (data[y + 1][x] + 1) / 2;
-            } else if (y == height - 1) {
-                data[y][x] -= (data[y - 1][x] + 1) / 2;
-            } else {
-                data[y][x] -= (data[y - 1][x] + data[y + 1][x] + 2) / 4;
-            }
-        }
-        // Étape de prédiction inverse
-        for (int y = 1; y < height - 1; y += 2) {
-            data[y][x] += (data[y - 1][x] + data[y + 1][x] + 1) / 2;
-        }
-    }
-
-    // Appliquer l'inverse sur les lignes
-    for (int y = 0; y < height; ++y) {
-        // Étape de mise à jour inverse
-        for (int x = 0; x < width; x += 2) {
-            if (x == 0) {
-                data[y][x] -= (data[y][x + 1] + 1) / 2;
-            } else if (x == width - 1) {
-                data[y][x] -= (data[y][x - 1] + 1) / 2;
-            } else {
-                data[y][x] -= (data[y][x - 1] + data[y][x + 1] + 2) / 4;
-            }
-        }
-        // Étape de prédiction inverse
-        for (int x = 1; x < width - 1; x += 2) {
-            data[y][x] += (data[y][x - 1] + data[y][x + 1] + 1) / 2;
-        }
-    }
-}
-
-void applyWaveletTransform53ToTiles(std::vector<Tile>& tiles) {
-    for (auto& tile : tiles) {
-        apply53(tile.data);
-    }
-}
-
-void inverseWaveletTransform53ToTiles(std::vector<Tile>& tiles) {
-    for (auto& tile : tiles) {
-        inverse53(tile.data);
-    }
-}
-
-//==========================================================================================================================
-//quantification
-
-
-
-void quantificationuniforme(Tile& tile, int quantizationStepLow, int quantizationStepHigh) {
-    int height = tile.data.size();
-    int width = tile.data[0].size();
-
-    // On suppose que la sous-bande LL est en haut à gauche (premier quart de la tuile)
-    int llHeight = height / 2;
-    int llWidth = width / 2;
-
-    for (int i = 0; i < height; ++i) {
-        for (int j = 0; j < width; ++j) {
-            if (i < llHeight && j < llWidth) {
-                // Sous-bande LL (basse fréquence) : quantification fine
-                tile.data[i][j] = (tile.data[i][j] + quantizationStepLow / 2) / quantizationStepLow;
-            } else {
-                // Sous-bandes LH, HL, HH (haute fréquence) : quantification plus forte
-                tile.data[i][j] = (tile.data[i][j] + quantizationStepHigh / 2) / quantizationStepHigh;
-            }
-        }
-    }
-}
-
-void inverseQuantificationuniforme(Tile& tile, int quantizationStepLow, int quantizationStepHigh) {
-    int height = tile.data.size();
-    int width = tile.data[0].size();
-
-    int llHeight = height / 2;
-    int llWidth = width / 2;
-
-    for (int i = 0; i < height; ++i) {
-        for (int j = 0; j < width; ++j) {
-            if (i < llHeight && j < llWidth) {
-                // Sous-bande LL
-                tile.data[i][j] *= quantizationStepLow;
-            } else {
-                // Sous-bandes LH, HL, HH
-                tile.data[i][j] *= quantizationStepHigh;
-            }
-        }
-    }
-}
-
-
-
-void quantificationForAllTiles(std::vector<Tile> & tiles) {
-    for (auto& tile : tiles) {
-        quantificationuniforme(tile, 2,4);  // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
-    }
-}
-
-void inverse_quantificationForAllTiles(std::vector<Tile> & tiles) {
-    for (auto& tile : tiles) {
-        inverseQuantificationuniforme(tile,2,4); // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
-    }
-}
 
 
 //==========================================================================================================================
 //bout de code pratique
 
 std::vector<int> getFlatTile(Tile & tile) {
-    std::vector<int> res;
+/*     std::vector<int> res;
     int width = tile.width;
     int height = tile.height;
     for (int i = 0; i < height; i++) { // Parcourir les lignes (height)
@@ -288,6 +139,55 @@ std::vector<int> getFlatTile(Tile & tile) {
             res.push_back(tile.data[i][j]);
         }
     }
+    return res; */
+
+    std::vector<int> res;
+    int width = tile.width;
+    int height = tile.height;
+
+    int halfWidth = width / 2;
+    int halfHeight = height / 2;
+
+    // LL
+    std::cout << "LL Subband:" << std::endl;
+    for (int i = 0; i < halfHeight; i++) {
+        for (int j = 0; j < halfWidth; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // LH
+    std::cout << "LH Subband:" << std::endl;
+    for (int i = 0; i < halfHeight; i++) {
+        for (int j = halfWidth; j < width; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // HL
+    std::cout << "HL Subband:" << std::endl;
+    for (int i = halfHeight; i < height; i++) {
+        for (int j = 0; j < halfWidth; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // HH
+    std::cout << "HH Subband:" << std::endl;
+    for (int i = halfHeight; i < height; i++) {
+        for (int j = halfWidth; j < width; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
     return res;
 }
 
@@ -311,7 +211,7 @@ void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::
     }
     
     // Remplissage des Tiles
-    tilesY.clear();
+    /* tilesY.clear();
     int index = 0;
     for (int t = 0; t < numTiles; ++t) {
         Tile tile(tileWidth, tileHeight, 0, 0);
@@ -320,6 +220,41 @@ void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::
                 tile.data[i][j] = decompressedData[index++];
             }
         }
+        tilesY.push_back(tile);
+    } */
+
+    int halfWidth = tileWidth / 2;
+    int halfHeight = tileHeight / 2;
+
+    tilesY.clear();
+    int index = 0;
+    for(int t = 0; t < numTiles; ++t) {
+        Tile tile(tileWidth, tileHeight, 0, 0);
+        
+        for (int i = 0; i < halfHeight; i++) {
+            for (int j = 0; j < halfWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+        // LH quadrant (top-right)
+        for (int i = 0; i < halfHeight; i++) {
+            for (int j = halfWidth; j < tileWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+        // HL quadrant (bottom-left)
+        for (int i = halfHeight; i < tileHeight; i++) {
+            for (int j = 0; j < halfWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+        // HH quadrant (bottom-right)
+        for (int i = halfHeight; i < tileHeight; i++) {
+            for (int j = halfWidth; j < tileWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+
         tilesY.push_back(tile);
     }
 
@@ -377,7 +312,7 @@ void reconstructImage(std::vector<Tile> & tiles, ImageBase & imIn, int tileWidth
 //==========================================================================================================================
 //fonction a adapter
 
-void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
+void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn, CompressionSettings & settings){
 
     printf("Compression JPEG 2000: Opening image : %s\n", cNomImgLue);
 
@@ -528,7 +463,7 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     writeHuffmanEncoded(allTilesRLE, codeTable,
                         imIn.getWidth(), imIn.getHeight(), downSampledCb.getWidth(), downSampledCb.getHeight() ,
                         tilesYRLE.size(), tilesCbRLE.size(),tilesCrRLE.size(),
-                        outFileName);
+                        outFileName, settings);
 
 }
 
@@ -537,7 +472,7 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
 //==========================================================================================================================
 
 
-void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut){
+void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut, CompressionSettings & settings){
     
     printf("Decompression 2000\n");
 
@@ -550,13 +485,12 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     int channelYRLESize, channelCbRLESize, channelCrRLESize;
 
 
-
     printf("Reading huffman encoded file\n");
 
     readHuffmanEncoded(outFileName,
                         codeTable, TilesRLEEncoded,
                         imageWidth, imageHeight, downSampledWidth, downSampledHeight,
-                        channelYRLESize, channelCbRLESize, channelCrRLESize);
+                        channelYRLESize, channelCbRLESize, channelCrRLESize, settings);
 
     std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
 
