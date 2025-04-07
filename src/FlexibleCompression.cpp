@@ -139,8 +139,8 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
     std::vector<Tile> tilesCb;
     std::vector<Tile> tilesCr;
 
-    int tilewidth = 120;
-    int tileHeight = 135;
+    int tilewidth = settings.tileWidth;
+    int tileHeight = settings.tileHeight;
 
     if(settings.transformationType == DWTTRANSFORM){
         std::cout << "wavelet transform" << std::endl;
@@ -471,8 +471,8 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             tilesCrRLE.push_back(BlocksRLEEncoded[i]);
         }
 
-        int tileWidth = 120;
-        int tileHeight = 135;
+        int tileWidth = settings.tileWidth;
+        int tileHeight = settings.tileHeight;
 
         decompressTilesRLE(tilesCbRLE, tilesCb,tileWidth,tileHeight);
         decompressTilesRLE(tilesCrRLE, tilesCr,tileWidth,tileHeight);

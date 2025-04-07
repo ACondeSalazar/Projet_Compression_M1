@@ -255,16 +255,7 @@ float getScaling(int quantificationFactor){
 
 }
 
-std::pair<int, int> getQuantificationStep(int quantificationFactor) {
 
-    float scale = getScaling(quantificationFactor);
-
-    int stepLow = std::max(1, (int)((scale + 50) / 50.0f));
-    int stepHigh = 2* stepLow;
-
-    return {stepLow, stepHigh};
-
-}
 
 void quantification_better (Block & block, const std::vector<std::vector<int>> & matrix, int quantificationFactor){
 
@@ -308,7 +299,16 @@ void inverse_quantification_better (Block & block, const std::vector<std::vector
 
 //quantification ondelette
 
+std::pair<int, int> getQuantificationStep(int quantificationFactor) {
 
+    float scale = getScaling(quantificationFactor);
+
+    int stepLow = std::max(1, (int)((scale + 50) / 50.0f));
+    int stepHigh = 2* stepLow;
+
+    return {stepLow, stepHigh};
+
+}
 
 void quantificationuniforme(Tile& tile, int quantizationStepLow, int quantizationStepHigh) {
     int height = tile.data.size();

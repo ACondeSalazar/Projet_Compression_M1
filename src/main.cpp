@@ -383,6 +383,10 @@ int main(int argc, char **argv)
             ImGui::Combo("Type flou", (int *)&customCompressionSettings.blurType, "Gaussian\0Median\0Bilateral\0");
             ImGui::Combo("Type sampling", (int *)&customCompressionSettings.samplingType, "Normal\0Bilinear\0Bicubic (implementer)\0Lanczos(implémenter)\0");
             ImGui::Combo("Type transformation", (int *)&customCompressionSettings.transformationType, "DCT\0DWT\0INTDCT(implementer?)\0DCTIV(implementer?)\0");
+            if (customCompressionSettings.transformationType == DWTTRANSFORM) {
+                ImGui::InputInt("Tile Width", &customCompressionSettings.tileWidth);
+                ImGui::InputInt("Tile Height", &customCompressionSettings.tileHeight);
+            }
             ImGui::SliderInt("Qualité", &customCompressionSettings.QuantizationFactor, 1, 100);
 
         

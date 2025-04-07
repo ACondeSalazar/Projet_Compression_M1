@@ -131,7 +131,7 @@ void inverseWaveletTransformToTiles(std::vector<Tile>& tiles) {
 //bout de code pratique
 
 std::vector<int> getFlatTile(Tile & tile) {
-    std::vector<int> res;
+/*     std::vector<int> res;
     int width = tile.width;
     int height = tile.height;
     for (int i = 0; i < height; i++) { // Parcourir les lignes (height)
@@ -139,6 +139,55 @@ std::vector<int> getFlatTile(Tile & tile) {
             res.push_back(tile.data[i][j]);
         }
     }
+    return res; */
+
+    std::vector<int> res;
+    int width = tile.width;
+    int height = tile.height;
+
+    int halfWidth = width / 2;
+    int halfHeight = height / 2;
+
+    // LL
+    std::cout << "LL Subband:" << std::endl;
+    for (int i = 0; i < halfHeight; i++) {
+        for (int j = 0; j < halfWidth; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // LH
+    std::cout << "LH Subband:" << std::endl;
+    for (int i = 0; i < halfHeight; i++) {
+        for (int j = halfWidth; j < width; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // HL
+    std::cout << "HL Subband:" << std::endl;
+    for (int i = halfHeight; i < height; i++) {
+        for (int j = 0; j < halfWidth; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // HH
+    std::cout << "HH Subband:" << std::endl;
+    for (int i = halfHeight; i < height; i++) {
+        for (int j = halfWidth; j < width; j++) {
+            res.push_back(tile.data[i][j]);
+            std::cout << tile.data[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
     return res;
 }
 
@@ -162,7 +211,7 @@ void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::
     }
     
     // Remplissage des Tiles
-    tilesY.clear();
+    /* tilesY.clear();
     int index = 0;
     for (int t = 0; t < numTiles; ++t) {
         Tile tile(tileWidth, tileHeight, 0, 0);
@@ -171,6 +220,41 @@ void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::
                 tile.data[i][j] = decompressedData[index++];
             }
         }
+        tilesY.push_back(tile);
+    } */
+
+    int halfWidth = tileWidth / 2;
+    int halfHeight = tileHeight / 2;
+
+    tilesY.clear();
+    int index = 0;
+    for(int t = 0; t < numTiles; ++t) {
+        Tile tile(tileWidth, tileHeight, 0, 0);
+        
+        for (int i = 0; i < halfHeight; i++) {
+            for (int j = 0; j < halfWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+        // LH quadrant (top-right)
+        for (int i = 0; i < halfHeight; i++) {
+            for (int j = halfWidth; j < tileWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+        // HL quadrant (bottom-left)
+        for (int i = halfHeight; i < tileHeight; i++) {
+            for (int j = 0; j < halfWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+        // HH quadrant (bottom-right)
+        for (int i = halfHeight; i < tileHeight; i++) {
+            for (int j = halfWidth; j < tileWidth; j++) {
+                tile.data[i][j] = decompressedData[index++];
+            }
+        }
+
         tilesY.push_back(tile);
     }
 

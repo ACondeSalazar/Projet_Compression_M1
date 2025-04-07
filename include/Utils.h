@@ -42,7 +42,8 @@ struct CompressionSettings {
     TransformationType transformationType;
     int QuantizationFactor;
 
-
+    int tileWidth = 120;
+    int tileHeight = 120;
 
 
 };
