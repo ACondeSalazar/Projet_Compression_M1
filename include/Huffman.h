@@ -3,11 +3,11 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
-#include <algorithm>
-#include <iostream>
-#include <bitset>
+
+#include <string>
 #include <stdint.h>
 #include <utility>
+#include "Utils.h"
 
 using namespace std;
 
@@ -60,13 +60,13 @@ void writeHuffmanEncoded(vector<pair<int, int>>& RLEData,
                          vector<huffmanCodeSingle>& codeTable,
                          int width, int height, int downSampledWidth, int downSampledHeight,
                          int channelYSize, int channelCbSize, int channelCrSize,
-                         const string& filename);
+                         const string& filename, CompressionSettings & settings);
 
 void readHuffmanEncoded(const string& filename,
                         vector<huffmanCodeSingle>& codeTable,
                         vector<pair<int, int>>& RLEData,
                         int & width, int & height, int & downSampledWidth, int & downSampledHeight,
-                        int & channelYSize, int & channelCbSize, int & channelCrSize);
+                        int & channelYSize, int & channelCbSize, int & channelCrSize, CompressionSettings & settings);
 
 
 

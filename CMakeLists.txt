@@ -47,6 +47,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     -O3 -march=native -flto -funroll-loops -DNDEBUG
 )
 
+# -O3 -march=native -flto -funroll-loops -DNDEBUG
+
 # Link SDL3 statically
 target_link_libraries(${PROJECT_NAME}
     PRIVATE

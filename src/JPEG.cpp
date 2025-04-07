@@ -1,14 +1,15 @@
 #include "JPEG.h"
-#include "Utils.h"
 #include "ImageBase.h"
 #include <thread>
 #include <vector>
-#include <fstream>
 
+#include "Utils.h"
+#include "FormatSamplingBlur.h"
+#include "TransformationQuantification.h"
 #include "RLE.h"
 #include "Huffman.h"
-#include <unordered_map>
 
+#include <iostream>
 
 
 #include <threads.h>
@@ -18,133 +19,6 @@ std::vector<std::pair<int,int>> rlecompression;
 
 std::vector<std::pair<int,int>> rledecompression;
 
-
-//Transformation de couleurs
-
-void RGB_to_YCbCr(ImageBase & imIn, ImageBase & Y, ImageBase & Cb, ImageBase & Cr){
-
-    for(int i = 0; i < imIn.getHeight(); i++){
-        for(int j = 0; j < imIn.getWidth(); j++){
-            
-            int R = imIn[i*3][j*3 + 0];
-            int G = imIn[i*3][j*3 + 1];
-            int B = imIn[i*3][j*3 + 2];
-
-
-            int Yij = static_cast<int>(0.299 * R + 0.587 * G + 0.114 * B);
-            int Crij = static_cast<int>(0.5 * R - 0.418688 * G - 0.081312 * B ) + 128;
-            int Cbij = static_cast<int>(-0.168736 * R - 0.331264 * G + 0.5 * B ) + 128;
-
-            Y[i][j] = Yij;
-            Cb[i][j] = Cbij;
-            Cr[i][j] = Crij;
-
-        }
-    }
-
-}
-
-void YCbCr_to_RGB(ImageBase & imY, ImageBase & imCb, ImageBase & imCr, ImageBase & imOut) {
-    for (int i = 0; i < imY.getHeight(); i++) {
-        for (int j = 0; j < imY.getWidth(); j++) {
-            int Yij = imY[i][j];
-            int Cbij = imCb[i][j] - 128;
-            int Crij = imCr[i][j] - 128;
-
-            int R = static_cast<int>(Yij + 1.402 * Crij);
-            int G = static_cast<int>(Yij - 0.344136 * Cbij - 0.714136 * Crij);
-            int B = static_cast<int>(Yij + 1.772 * Cbij);
-
-            imOut[i * 3][j * 3 + 0] = std::clamp(R, 0, 255);
-            imOut[i * 3][j * 3 + 1] = std::clamp(G, 0, 255);
-            imOut[i * 3][j * 3 + 2] = std::clamp(B, 0, 255);
-        }
-    }
-}
-
-//Sous échantillonage d'une image, faut trouver un meilleur algo
-//imout doit être de largeur Imin.width / 2 et de hauteur Imin.height / 2
-void down_sampling(ImageBase & imIn, ImageBase & imOut){ // filtre moyenneur
-
-    std::vector<std::vector<int>> kernel = {
-        {1, 1},
-        {1, 1}
-    };
-
-    int kernelSum = 0;
-    for (const auto& row : kernel) {
-        for (int val : row) {
-            kernelSum += val;
-        }
-    }
-
-    int kernelHeight = kernel.size();
-    int kernelWidth = kernel[0].size();
-
-    for (int i = 0; i < imOut.getHeight(); i++) {
-        for (int j = 0; j < imOut.getWidth(); j++) {
-            int sum = 0;
-            for (int ki = 0; ki < kernelHeight; ki++) {
-                for (int kj = 0; kj < kernelWidth; kj++) {
-                    sum += imIn[i * 2 + ki][j * 2 + kj] * kernel[ki][kj];
-                }
-            }
-            imOut[i][j] = sum / kernelSum;
-        }
-    }
-
-
-};
-
-//cette fonction fait un sous-échantillonnage avec interpolation bilinéaire
-//Devrait etre meilleur que la fonction de base
-void down_sampling_bilinear(ImageBase &imIn, ImageBase &imOut) {
-    int newWidth = imOut.getWidth();
-    int newHeight = imOut.getHeight();
-    int oldWidth = imIn.getWidth();
-    int oldHeight = imIn.getHeight();
-
-    for (int i = 0; i < newHeight; i++) {
-        for (int j = 0; j < newWidth; j++) {
-
-            // Coordonnees image originale
-            float x = j * (oldWidth - 1) / (float)(newWidth - 1);
-            float y = i * (oldHeight - 1) / (float)(newHeight - 1);
-
-            int x1 = (int) x;
-            int y1 = (int) y;
-            int x2 = std::min(x1 + 1, oldWidth - 1);
-            int y2 = std::min(y1 + 1, oldHeight - 1);
-
-            
-            float dx = x - x1;
-            float dy = y - y1;
-
-            // Interpolation bilineaire
-            float val = (1 - dx) * (1 - dy) * imIn[y1][x1] +
-                        dx * (1 - dy) * imIn[y1][x2] +
-                        (1 - dx) * dy * imIn[y2][x1] +
-                        dx * dy * imIn[y2][x2];
-
-            imOut[i][j] = (int) std::round(val);
-        }
-    }
-}
-
-
-
-
-void up_sampling(ImageBase & imIn, ImageBase & imOut){
-
-    for (int i = 0; i < imOut.getHeight(); i++) {
-        for (int j = 0; j < imOut.getWidth(); j++) {
-            imOut[i][j] = imIn[i / 2][j / 2];
-        }
-    }
-
-}
-
-//Découpage en blocs de pixel
 
 
 
@@ -224,7 +98,7 @@ void reconstructImage(std::vector<Block> & blocks, ImageBase & imIn, int blocksi
 
 //fonction qui regroupe tout 
 
-void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
+void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn, CompressionSettings & settings){
 
     std::vector<std::thread> threads;
 
@@ -388,14 +262,14 @@ void compression( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn){
     writeHuffmanEncoded(allBlocksRLE, codeTable,
                         imIn.getWidth(), imIn.getHeight(), downSampledCb.getWidth(), downSampledCb.getHeight() ,
                         blocksYRLE.size(), blocksCbRLE.size(),blocksCrRLE.size(),
-                        outFileName);
+                        outFileName, settings);
 
 }
 
 
 
 
-void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut){
+void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * imOut, CompressionSettings & settings){
     
     printf("Decompression\n");
 
@@ -416,7 +290,7 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
     readHuffmanEncoded(outFileName,
                         codeTable, BlocksRLEEncoded,
                         imageWidth, imageHeight, downSampledWidth, downSampledHeight,
-                        channelYRLESize, channelCbRLESize, channelCrRLESize);
+                        channelYRLESize, channelCbRLESize, channelCrRLESize, settings);
 
     std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
 
@@ -446,7 +320,7 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
             blocksYRLE.push_back(BlocksRLEEncoded[i]);
         }
 
-        decompressBlocksRLE(blocksYRLE, blocksY, DCTTRANSFORM);
+        decompressBlocksRLE(blocksYRLE, blocksY, quantificationLuminance, nullptr);
         printf("blocksY size: %lu\n", blocksY.size());
 
         printf("Reconstructing Y channel\n");
@@ -460,7 +334,7 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
             blocksCbRLE.push_back(BlocksRLEEncoded[i]);
         }
 
-        decompressBlocksRLE(blocksCbRLE, blocksCb, DCTTRANSFORM);
+        decompressBlocksRLE(blocksCbRLE, blocksCb, quantificationChrominance, nullptr);
         printf("blocksCb size: %lu\n", blocksCb.size());
 
         printf("Reconstructing Cb channel\n");
@@ -474,7 +348,7 @@ void decompression(const char * cNomImgIn, const char * cNomImgOut, ImageBase * 
             blocksCrRLE.push_back(BlocksRLEEncoded[i]);
         }
 
-        decompressBlocksRLE(blocksCrRLE, blocksCr, DCTTRANSFORM);
+        decompressBlocksRLE(blocksCrRLE, blocksCr, quantificationChrominance, nullptr);
         printf("blocksCr size: %lu\n", blocksCr.size());
 
         printf("Reconstructing Cr channel\n");
