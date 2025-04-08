@@ -14,9 +14,9 @@
 
 #include <iostream>
 
+int tilewidth = 480*2;
+int tileHeight = 360*2;
 
-int tilewidth = 120;
-int tileHeight = 135;
 /*
 Avec JPEG2000 on ne fait pas des blocks de 8 par 8 mais des Tiles
 Ici on va faire des Tiles de taille 128*128 ou 256*256
@@ -131,7 +131,7 @@ void inverseWaveletTransformToTiles(std::vector<Tile>& tiles) {
 //bout de code pratique
 
 std::vector<int> getFlatTile(Tile & tile) {
-/*     std::vector<int> res;
+/*    std::vector<int> res;
     int width = tile.width;
     int height = tile.height;
     for (int i = 0; i < height; i++) { // Parcourir les lignes (height)
@@ -153,39 +153,39 @@ std::vector<int> getFlatTile(Tile & tile) {
     for (int i = 0; i < halfHeight; i++) {
         for (int j = 0; j < halfWidth; j++) {
             res.push_back(tile.data[i][j]);
-            std::cout << tile.data[i][j] << " ";
+            //std::cout << tile.data[i][j] << " ";
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
 
     // LH
-    std::cout << "LH Subband:" << std::endl;
+    //std::cout << "LH Subband:" << std::endl;
     for (int i = 0; i < halfHeight; i++) {
         for (int j = halfWidth; j < width; j++) {
             res.push_back(tile.data[i][j]);
-            std::cout << tile.data[i][j] << " ";
+            //std::cout << tile.data[i][j] << " ";
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
 
     // HL
-    std::cout << "HL Subband:" << std::endl;
+    //std::cout << "HL Subband:" << std::endl;
     for (int i = halfHeight; i < height; i++) {
         for (int j = 0; j < halfWidth; j++) {
             res.push_back(tile.data[i][j]);
-            std::cout << tile.data[i][j] << " ";
+            //std::cout << tile.data[i][j] << " ";
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
 
     // HH
-    std::cout << "HH Subband:" << std::endl;
+    //std::cout << "HH Subband:" << std::endl;
     for (int i = halfHeight; i < height; i++) {
         for (int j = halfWidth; j < width; j++) {
             res.push_back(tile.data[i][j]);
-            std::cout << tile.data[i][j] << " ";
+            //std::cout << tile.data[i][j] << " ";
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
 
     return res;
@@ -209,19 +209,6 @@ void decompressTilesRLE(const std::vector<std::pair<int, int>>& tilesYRLE, std::
         std::cerr << "Erreur: Données RLE mal formées ou incorrectes." << std::endl;
         return;
     }
-    
-    // Remplissage des Tiles
-    /* tilesY.clear();
-    int index = 0;
-    for (int t = 0; t < numTiles; ++t) {
-        Tile tile(tileWidth, tileHeight, 0, 0);
-        for (int i = 0; i < tileHeight; ++i) {
-            for (int j = 0; j < tileWidth; ++j) {
-                tile.data[i][j] = decompressedData[index++];
-            }
-        }
-        tilesY.push_back(tile);
-    } */
 
     int halfWidth = tileWidth / 2;
     int halfHeight = tileHeight / 2;
@@ -321,6 +308,8 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn, C
     int width = imIn.getWidth();
     int height = imIn.getHeight();
 
+
+
     //Transformation des couleurs
     printf("Transformation de l'espace couleur");
     ImageBase imY(imIn.getWidth(), imIn.getHeight(), false);
@@ -362,9 +351,9 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn, C
     //Découpage en tiles de tiles
     printf("Découpage en tiles de pixel \n");
 
-    std::vector<Tile> tilesY = getTiles(imY, tilewidth,tileHeight); // ici ca devrait etre plus de 8 genre 128 ou plus mais ca plante (problème dans getTiles)
-    std::vector<Tile> tilesCb = getTiles(downSampledCb, tilewidth,tileHeight);
-    std::vector<Tile> tilesCr = getTiles(downSampledCr, tilewidth,tileHeight);
+    std::vector<Tile> tilesY = getTiles(imY, tilewidth,tileHeight);
+    std::vector<Tile> tilesCb = getTiles(downSampledCb, tilewidth/2,tileHeight/2);
+    std::vector<Tile> tilesCr = getTiles(downSampledCr, tilewidth/2,tileHeight/2);
 
     printf("number of tiles for Y channel: %d\n", tilesY.size());
     printf("number of tiles for Cb channel: %d\n", tilesCb.size());
@@ -430,11 +419,7 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn, C
         tilesCrRLE.insert(tilesCrRLE.end(),RLETile.begin(),RLETile.end());
     }
 
-    /*int totalLengthCb = 0;
-    for (const auto& pair : tilesCrRLE) {
-        totalLengthCb += pair.first;
-    }
-    std::cout<<"ici trouduc"<<totalLengthCb<<std::endl;*/
+
 
     std::vector<std::pair<int, int>> allTilesRLE; //on fusionne les 3 canaux
     allTilesRLE.insert(allTilesRLE.end(), tilesYRLE.begin(), tilesYRLE.end());
@@ -445,7 +430,7 @@ void compression2000( char * cNomImgLue,  char * cNomImgOut, ImageBase & imIn, C
 
     printf("  Fini\n");
 
-    printf("Huffman encoding ");
+    printf("Huffman encoding \n");
 
     std::vector<huffmanCodeSingle> codeTable;
 
@@ -513,9 +498,9 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
         tilesCrRLE.push_back(TilesRLEEncoded[i]);
     }
 
-    for(int i = 10; i<30; i++){
+    /*for(int i = 10; i<30; i++){
         printf("[%d , %d] ,",tilesYRLE[i].first,tilesYRLE[i].second);
-    }
+    }*/
 
 
     printf("Blocks decoding\n");
@@ -526,11 +511,11 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     std::vector<Tile> tilesCr;
 
     printf("tilesCbRLE size: %lu\n", tilesCbRLE.size());
-    decompressTilesRLE(tilesCbRLE, tilesCb,tilewidth,tileHeight);
+    decompressTilesRLE(tilesCbRLE, tilesCb,tilewidth/2,tileHeight/2);
     printf("tilesCb size: %lu\n", tilesCb.size());
 
 
-    decompressTilesRLE(tilesCrRLE, tilesCr,tilewidth,tileHeight);
+    decompressTilesRLE(tilesCrRLE, tilesCr,tilewidth/2,tileHeight/2);
     printf("tilesCr size: %lu\n", tilesCr.size());
    
     decompressTilesRLE(tilesYRLE, tilesY,tilewidth,tileHeight);
@@ -565,12 +550,12 @@ void decompression2000(const char * cNomImgIn, const char * cNomImgOut, ImageBas
     ImageBase upSampledCr(imageWidth, imageHeight, false);
 
     printf("Reconstructing Cb channel\n");
-    reconstructImage(tilesCb, imCb,tilewidth,tileHeight);
+    reconstructImage(tilesCb, imCb,tilewidth/2,tileHeight/2);
     up_sampling(imCb, upSampledCb);
     upSampledCb.save("./img/out/Cb_decompressed.pgm");
 
     printf("Reconstructing Cr channel\n");
-    reconstructImage(tilesCr, imCr,tilewidth,tileHeight);
+    reconstructImage(tilesCr, imCr,tilewidth/2,tileHeight/2);
     up_sampling(imCr, upSampledCr);
     upSampledCr.save("./img/out/Cr_decompressed.pgm");
 

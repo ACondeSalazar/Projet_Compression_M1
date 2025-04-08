@@ -111,21 +111,9 @@ void HuffmanEncoding(vector<pair<int,int>> & RLEData, vector<huffmanCodeSingle> 
 
     initHuffmanTree(frequencyTable, RLEData.size(), huffmanTree);
 
-    /* printf("tree init \n");
-    for (const auto& node : huffmanTree) {
-        cout << "RLE Pair: (" << node->rlePair.first << ", " << node->rlePair.second << "), Frequency: " << node->frequency << endl;
-    } */
-
-
     buildHuffmanTree(huffmanTree);
 
-    /* printf("tree built \n");
-    for (const auto& node : huffmanTree) {
-        cout << "RLE Pair: (" << node->rlePair.first << ", " << node->rlePair.second << "), Frequency: " << node->frequency << endl;
-    } */
-
     getEncodingRecursive(huffmanTree[0], 0, 0, codeTable);
-
 
     deleteTreeRecursive(huffmanTree[0]);
 }

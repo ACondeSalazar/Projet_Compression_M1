@@ -352,15 +352,71 @@ void inverseQuantificationuniforme(Tile& tile, int quantizationStepLow, int quan
 }
 
 
+void quantificationZoneMorte(Tile& tile, int quantStepLow, int quantStepHigh, float zoneDeadFactor = 1.0f) {
+    int height = tile.data.size();
+    int width = tile.data[0].size();
+
+    int llHeight = height / 2;
+    int llWidth = width / 2;
+
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            int& val = tile.data[i][j];
+            int qStep = (i < llHeight && j < llWidth) ? quantStepLow : quantStepHigh;
+
+            // Zone morte proportionnelle au pas de quantification
+            int deadZone = static_cast<int>(zoneDeadFactor * qStep / 2.0f);
+
+            if (std::abs(val) < deadZone) {
+                val = 0;
+            } else {
+                val = (val > 0)
+                    ? (val - deadZone) / qStep
+                    : (val + deadZone) / qStep;
+            }
+        }
+    }
+}
+
+
+void inverseQuantificationZoneMorte(Tile& tile, int quantStepLow, int quantStepHigh, float zoneDeadFactor = 1.0f) {
+    int height = tile.data.size();
+    int width = tile.data[0].size();
+
+    int llHeight = height / 2;
+    int llWidth = width / 2;
+
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            int& val = tile.data[i][j];
+            int qStep = (i < llHeight && j < llWidth) ? quantStepLow : quantStepHigh;
+
+            int deadZone = static_cast<int>(zoneDeadFactor * qStep / 2.0f);
+
+            if (val == 0) {
+                continue; // Valeur restée dans la zone morte → 0
+            } else {
+                val = (val > 0)
+                    ? val * qStep + deadZone
+                    : val * qStep - deadZone;
+            }
+        }
+    }
+}
+
+
+
+
+
 
 void quantificationForAllTiles(std::vector<Tile> & tiles) {
     for (auto& tile : tiles) {
-        quantificationuniforme(tile, 2,4);  // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
+        quantificationZoneMorte(tile, 2,4);  // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
     }
 }
 
 void inverse_quantificationForAllTiles(std::vector<Tile> & tiles) {
     for (auto& tile : tiles) {
-        inverseQuantificationuniforme(tile,2,4); // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
+        inverseQuantificationZoneMorte(tile,2,4); // ici on controle le taux de compression -> 1,2 tres bon -> 2,4 bon -> 4,8 moyen-> 8, 16 mauvais
     }
 }
