@@ -1,4 +1,5 @@
 #include "ImageBase.h"
+#include "LZ77.h"
 #include "Utils.h"
 #include "FlexibleCompression.h"
 #include "JPEG.h"
@@ -24,8 +25,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-const int SCREEN_WIDTH = 1920;
-const int SCREEN_HEIGHT = 1080;
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
 
 ImageBase imgOriginal;
 ImageBase * imgDecompressed;
@@ -242,8 +243,12 @@ int main(int argc, char **argv)
     customCompressionSettings.colorFormat = YCBCRFORMAT;
     customCompressionSettings.blurType = GAUSSIANBLUR;
     customCompressionSettings.samplingType = BILENARSAMPLING;
-    customCompressionSettings.transformationType = DCTTRANSFORM;
+    customCompressionSettings.transformationType = DWTTRANSFORM;
     customCompressionSettings.QuantizationFactor = 100;
+    customCompressionSettings.tileHeight = 120;
+    customCompressionSettings.tileWidth = 120;
+    customCompressionSettings.encodingType = LZ77;
+    customCompressionSettings.encodingWindowSize = 200;
 
     namespace fs = std::filesystem;
 
@@ -387,7 +392,12 @@ int main(int argc, char **argv)
                 ImGui::InputInt("Tile Width", &customCompressionSettings.tileWidth);
                 ImGui::InputInt("Tile Height", &customCompressionSettings.tileHeight);
             }
-            ImGui::SliderInt("Qualité", &customCompressionSettings.QuantizationFactor, 1, 100);
+            ImGui::SliderInt("Qualité (quantification)", &customCompressionSettings.QuantizationFactor, 1, 100);
+            ImGui::Combo("Type d'encodage", (int *)&customCompressionSettings.encodingType, "RLE\0LZ77\0");
+
+            if(customCompressionSettings.encodingType == LZ77){
+                ImGui::InputInt("Taille fenetre encodage", &customCompressionSettings.encodingWindowSize);
+            }
 
         
         }

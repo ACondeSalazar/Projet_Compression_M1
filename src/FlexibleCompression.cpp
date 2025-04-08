@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "FormatSamplingBlur.h"
 #include "TransformationQuantification.h"
+#include "LZ77.h"
 #include "RLE.h"
 #include "Huffman.h"
 
@@ -18,11 +19,12 @@
 
 
 #include <iostream>
+#include <vector>
 
 
 
 
-void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, CompressionSettings settings){
+void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, CompressionSettings & settings){
 
     std::vector<std::thread> threads;
 
@@ -135,6 +137,10 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
     std::vector<std::pair<int,int>> blocksColor1RLE;
     std::vector<std::pair<int,int>> blocksColor2RLE;
 
+    std::vector<LZ77Triplet> blocksLuminanceLZ77; //les blocs applatis et encodés en LZ77
+    std::vector<LZ77Triplet> blocksColor1LZ77;
+    std::vector<LZ77Triplet> blocksColor2LZ77;
+
     std::vector<Tile> tilesY;
     std::vector<Tile> tilesCb;
     std::vector<Tile> tilesCr;
@@ -171,7 +177,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             quantificationuniforme(tile, stepLow,stepHigh); 
         }
 
-        std::cout << "First tile of tilesY:" << std::endl;
+        /* std::cout << "First tile of tilesY:" << std::endl;
         if (!tilesY.empty()) {
             std::cout << "First tile of tilesY:" << std::endl;
             for (const auto& row : tilesY.front().data) {
@@ -182,7 +188,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             }
         } else {
             std::cout << "tilesY is empty." << std::endl;
-        }
+        } */
 
         for (auto& tile : tilesCb) {
             quantificationuniforme(tile, stepLow,stepHigh);
@@ -192,41 +198,44 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             quantificationuniforme(tile, stepLow,stepHigh);
         }
 
-        bool debug = false;
+        std::vector<int> flatDataY;
+        std::vector<int> flatDataCb;
+        std::vector<int> flatDataCr;
+
         for(Tile & tile : tilesY){
-            std::vector<std::pair<int,int>> RLETile;
-    
             std::vector<int> flatTile = getFlatTile(tile);
-            if(!debug){
-                std::cout << "First flat tile:" << std::endl;
-                for (const auto& value : flatTile) {
-                    std::cout << value << " ";
-                }
-                std::cout << std::endl;
-                debug = true;
-            }
-            
+
+            std::vector<std::pair<int,int>> RLETile;
             RLECompression(flatTile,RLETile);
-    
             blocksLuminanceRLE.insert(blocksLuminanceRLE.end(),RLETile.begin(),RLETile.end());
+
+            std::vector<LZ77Triplet> LZ77Tile;
+            LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
+            blocksLuminanceLZ77.insert(blocksLuminanceLZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
         }
     
         for(Tile & tile : tilesCb){
-            std::vector<std::pair<int,int>> RLETile;
-    
             std::vector<int> flatTile = getFlatTile(tile);
+
+            std::vector<std::pair<int,int>> RLETile;
             RLECompression(flatTile,RLETile);
-    
             blocksColor1RLE.insert(blocksColor1RLE.end(),RLETile.begin(),RLETile.end());
+
+            std::vector<LZ77Triplet> LZ77Tile;
+            LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
+            blocksColor1LZ77.insert(blocksColor1LZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
         }
     
         for(Tile & tile : tilesCr){
-            std::vector<std::pair<int,int>> RLETile;
-    
             std::vector<int> flatTile = getFlatTile(tile);
+            
+            std::vector<std::pair<int,int>> RLETile;
             RLECompression(flatTile,RLETile);
-    
             blocksColor2RLE.insert(blocksColor2RLE.end(),RLETile.begin(),RLETile.end());
+
+            std::vector<LZ77Triplet> LZ77Tile;
+            LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
+            blocksColor2LZ77.insert(blocksColor2LZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
         }
     }
     else {
@@ -317,7 +326,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
         }
         threads.clear();
 
-        std::cout << "Last block of blocksLuminance:" << std::endl;
+        /* std::cout << "Last block of blocksLuminance:" << std::endl;
         if (!blocksLuminance.empty()) {
             for (const auto& row : blocksLuminance.back().dctMatrix) {
             for (const auto& value : row) {
@@ -327,7 +336,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             }
         } else {
             std::cout << "blocksLuminance is empty." << std::endl;
-        }
+        } */
 
     //##########################Encodage RLE#############################
 
@@ -372,42 +381,69 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
     //##########################Codage de Huffman et ecriture du fichier#############################
 
 
-    std::vector<std::pair<int, int>> allBlocksRLE; //on fusionne les 3 canaux
-    allBlocksRLE.insert(allBlocksRLE.end(), blocksLuminanceRLE.begin(), blocksLuminanceRLE.end());
-    allBlocksRLE.insert(allBlocksRLE.end(), blocksColor1RLE.begin(), blocksColor1RLE.end());
-    allBlocksRLE.insert(allBlocksRLE.end(), blocksColor2RLE.begin(), blocksColor2RLE.end());
+    
 
-    printf("  Fini\n");
-    printf("Huffman encoding ");
+    if(settings.encodingType == RLE){
+        std::vector<std::pair<int, int>> allBlocksRLE; //on fusionne les 3 canaux
+        allBlocksRLE.insert(allBlocksRLE.end(), blocksLuminanceRLE.begin(), blocksLuminanceRLE.end());
+        allBlocksRLE.insert(allBlocksRLE.end(), blocksColor1RLE.begin(), blocksColor1RLE.end());
+        allBlocksRLE.insert(allBlocksRLE.end(), blocksColor2RLE.begin(), blocksColor2RLE.end());
+        std::cout << "all rle size " << allBlocksRLE.size() << std::endl;
+        std::vector<huffmanCodeSingle> codeTable;
+        HuffmanEncoding(allBlocksRLE, codeTable);
+        std::cout << "Table size : " << codeTable.size() << std::endl;
 
-    std::vector<huffmanCodeSingle> codeTable;
+        
 
-    HuffmanEncoding(allBlocksRLE, codeTable);
+        //on ecrit le fichier huffman encodé
+        writeHuffmanEncoded(allBlocksRLE, codeTable,
+            imIn.getWidth(), imIn.getHeight(), downSampledColor1.getWidth(), downSampledColor1.getHeight() ,
+            blocksLuminanceRLE.size(), blocksColor1RLE.size(),blocksColor2RLE.size(),
+            cNomImgOut, settings); 
 
-    printf("Code table size: %lu\n", codeTable.size());
+    }else if(settings.encodingType == LZ77){
 
-    printf("  Fini\n");
+        std::vector<LZ77Triplet> allBlocksLZ77; //on fusionne les 3 canaux
+        allBlocksLZ77.insert(allBlocksLZ77.end(), blocksLuminanceLZ77.begin(), blocksLuminanceLZ77.end());
+        allBlocksLZ77.insert(allBlocksLZ77.end(), blocksColor1LZ77.begin(), blocksColor1LZ77.end());
+        allBlocksLZ77.insert(allBlocksLZ77.end(), blocksColor2LZ77.begin(), blocksColor2LZ77.end());
 
-    printf("Writing huffman encoded file\n");
-    std::string outFileName = cNomImgOut;
+        std::vector<huffmanCodeSingleLZ77> codeTableLZ77;
 
-    //on ecrit le fichier huffman encodé
-    writeHuffmanEncoded(allBlocksRLE, codeTable,
-        imIn.getWidth(), imIn.getHeight(), downSampledColor1.getWidth(), downSampledColor1.getHeight() ,
-        blocksLuminanceRLE.size(), blocksColor1RLE.size(),blocksColor2RLE.size(),
-        outFileName, settings);
+        HuffmanEncodingLZ77(allBlocksLZ77, codeTableLZ77);
+        std::cout << "Table size : " << codeTableLZ77.size() << std::endl;
+
+        double totalLength = 0;
+        for (const auto& code : codeTableLZ77) {
+            totalLength += code.length;
+        }
+        double meanLength = totalLength / codeTableLZ77.size();
+        std::cout << "Mean length of Huffman codes: " << meanLength << std::endl;
+
+        writeHuffmanEncodedLZ77(allBlocksLZ77, codeTableLZ77,
+                imIn.getWidth(), imIn.getHeight(), downSampledColor1.getWidth(),downSampledColor2.getHeight(),
+                blocksLuminanceLZ77.size(), blocksColor1LZ77.size(), blocksColor2LZ77.size(),
+                cNomImgOut, settings);
+
+    }
 
 }
 
-void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase *imOut, CompressionSettings settings){
-
+void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase *imOut, CompressionSettings & settings){
+    
     std::string outFileName = cNomImgIn;
+
     std::vector<huffmanCodeSingle> codeTable;
     std::vector<std::pair<int, int>> BlocksRLEEncoded;
+    int channelYRLESize, channelCbRLESize, channelCrRLESize;
+
+    std::vector<huffmanCodeSingleLZ77> codeTableLZ77;
+    std::vector<LZ77Triplet> BlocksLZ77Encoded;
+    int channelYLZ77Size, channelCbLZ77Size, channelCrLZ77Size;
 
     int imageWidth, imageHeight;
     int downSampledWidth, downSampledHeight;
-    int channelYRLESize, channelCbRLESize, channelCrRLESize;
+    
 
     std::vector<std::thread> threads;
 
@@ -415,16 +451,32 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
 
     //##########################Lecture du fichier#############################
 
+    readSettings(outFileName, settings);
+    //settings.printSettings();
+    
 
     printf("Reading huffman encoded file\n");
 
-    readHuffmanEncoded(outFileName,
-                        codeTable, BlocksRLEEncoded,
-                        imageWidth, imageHeight, downSampledWidth, downSampledHeight,
-                        channelYRLESize, channelCbRLESize, channelCrRLESize, settings);
+    if(settings.encodingType == RLE){
+
+        readHuffmanEncoded(outFileName,
+            codeTable, BlocksRLEEncoded,
+            imageWidth, imageHeight, downSampledWidth, downSampledHeight,
+            channelYRLESize, channelCbRLESize, channelCrRLESize, settings);
+            printf("Code table size: %lu\n", codeTable.size());
+
+    }else if(settings.encodingType == LZ77){
+
+        readHuffmanEncodedLZ77(outFileName,
+            codeTableLZ77, BlocksLZ77Encoded,
+            imageWidth, imageHeight, downSampledWidth, downSampledHeight,
+            channelYLZ77Size, channelCbLZ77Size, channelCrLZ77Size, settings);
+            printf("Code table size: %lu\n", codeTableLZ77.size());
+
+    }
 
     std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
-    printf("Code table size: %lu\n", codeTable.size());
+    
 
     std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
     std::vector<std::pair<int,int>> blocksCbRLE;
@@ -452,31 +504,59 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
     std::vector<std::pair<int,int>> tilesCbRLE;
     std::vector<std::pair<int,int>> tilesCrRLE;
 
+    std::vector<LZ77Triplet> tilesYLZ77;
+    std::vector<LZ77Triplet> blocksCbLZ77;
+    std::vector<LZ77Triplet> blocksCrLZ77;
+
     std::vector<Tile> tilesY;
     std::vector<Tile> tilesCb;
     std::vector<Tile> tilesCr;
+
+    int tileWidth = settings.tileWidth;
+    int tileHeight = settings.tileHeight;
     
     if(settings.transformationType == DWTTRANSFORM){
 
-        //on sépare les 3 canaux
-        for (int i = 0; i < channelYRLESize; i++) {
-            tilesYRLE.push_back(BlocksRLEEncoded[i]);
+        if (settings.encodingType == RLE){//on sépare les 3 canaux
+            for (int i = 0; i < channelYRLESize; i++) {
+                tilesYRLE.push_back(BlocksRLEEncoded[i]);
+            }
+
+            for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
+                tilesCbRLE.push_back(BlocksRLEEncoded[i]);
+            }
+
+            for (int i = channelYRLESize + channelCbRLESize; i < channelYRLESize + channelCbRLESize + channelCrRLESize; i++) {
+                tilesCrRLE.push_back(BlocksRLEEncoded[i]);
+            }
+
+            decompressTilesRLE(tilesCbRLE, tilesCb,tileWidth,tileHeight);
+            decompressTilesRLE(tilesCrRLE, tilesCr,tileWidth,tileHeight);
+            decompressTilesRLE(tilesYRLE, tilesY,tileWidth,tileHeight);
+
+        }else if (settings.encodingType == LZ77) { 
+            
+            for (int i = 0; i < channelYLZ77Size; i++) {
+                tilesYLZ77.push_back(BlocksLZ77Encoded[i]);
+            }
+
+            for (int i = channelYLZ77Size; i < channelYLZ77Size + channelCbLZ77Size; i++) {
+                blocksCbLZ77.push_back(BlocksLZ77Encoded[i]);
+            }
+
+            for (int i = channelYLZ77Size + channelCbLZ77Size; i < channelYLZ77Size + channelCbLZ77Size + channelCrLZ77Size; i++) {
+                blocksCrLZ77.push_back(BlocksLZ77Encoded[i]);
+            }
+
+            std::cout << "Encoded tiles sizes:" << std::endl;
+            std::cout << "Y tiles: " << tilesYLZ77.size() << std::endl;
+            std::cout << "Cb tiles: " << blocksCbLZ77.size() << std::endl;
+            std::cout << "Cr tiles: " << blocksCrLZ77.size() << std::endl;
+
+            decompressTilesLZ77(tilesYLZ77, tilesY, tileWidth, tileHeight); 
+            decompressTilesLZ77(blocksCbLZ77, tilesCb, tileWidth, tileHeight); 
+            decompressTilesLZ77(blocksCrLZ77, tilesCr, tileWidth, tileHeight); 
         }
-
-        for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
-            tilesCbRLE.push_back(BlocksRLEEncoded[i]);
-        }
-
-        for (int i = channelYRLESize + channelCbRLESize; i < channelYRLESize + channelCbRLESize + channelCrRLESize; i++) {
-            tilesCrRLE.push_back(BlocksRLEEncoded[i]);
-        }
-
-        int tileWidth = settings.tileWidth;
-        int tileHeight = settings.tileHeight;
-
-        decompressTilesRLE(tilesCbRLE, tilesCb,tileWidth,tileHeight);
-        decompressTilesRLE(tilesCrRLE, tilesCr,tileWidth,tileHeight);
-        decompressTilesRLE(tilesYRLE, tilesY,tileWidth,tileHeight);
 
         std::pair<int, int> steps = getQuantificationStep(settings.QuantizationFactor);
         int stepLow = steps.first;
@@ -528,7 +608,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
                 return;
         }
 
-    }else{
+    }else{ //rle
 
             //on sépare les 3 canaux
         threads.emplace_back([&BlocksRLEEncoded, &blocksYRLE, channelYRLESize, &blocksY, &imY, &settings] {
@@ -626,7 +706,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
         }
         threads.clear();
 
-        std::cout << "Last block of blocksY:" << std::endl;
+        /* std::cout << "Last block of blocksY:" << std::endl;
         if (!blocksY.empty()) {
             for (const auto& row : blocksY.back().dctMatrix) {
                 for (const auto& value : row) {
@@ -636,7 +716,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             }
         } else {
             std::cout << "blocksY is empty." << std::endl;
-        }
+        } */
 
 
     }
