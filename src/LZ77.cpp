@@ -109,10 +109,47 @@ void LZ77Decompression(std::vector<LZ77Triplet> & compressedData, std::vector<in
 void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile> &tilesY, int tileWidth, int tileHeight) {
     tilesY.clear();
 
-    std::vector<int> decompressedData;
+    std::vector<int> globalBuffer;           // Holds full decompressed data (for offset back-references)
+    std::vector<int> currentTileData;        // Holds pixels for the current tile
     int expectedSize = tileWidth * tileHeight;
 
-    LZ77Decompression(tilesYLZ77, decompressedData, expectedSize);
+    for (const LZ77Triplet& triplet : tilesYLZ77) {
+        int offset = triplet.offset;
+        int length = triplet.length;
+        int next = triplet.next;
 
-    
+        int start = globalBuffer.size() - offset;
+
+        // Copy 'length' values from globalBuffer to both globalBuffer and currentTileData
+        for (int j = 0; j < length && currentTileData.size() < expectedSize; ++j) {
+            if (start + j >= 0 && start + j < globalBuffer.size()) {
+                int val = globalBuffer[start + j];
+                globalBuffer.push_back(val);
+                currentTileData.push_back(val);
+            }
+        }
+
+        // Push the 'next' value if the tile isn't full yet
+        if (currentTileData.size() < expectedSize) {
+            globalBuffer.push_back(next);
+            currentTileData.push_back(next);
+        }
+
+        // If the tile is full, create a tile
+        if (currentTileData.size() == expectedSize) {
+            Tile newTile(tileWidth, tileHeight, 0, 0);
+            for (int i = 0; i < tileWidth; ++i) {
+                for (int j = 0; j < tileHeight; ++j) {
+                    newTile.data[i][j] = currentTileData[i * tileHeight + j]; // tileHeight, not tileWidth!
+                }
+            }
+            tilesY.push_back(newTile);
+            currentTileData.clear();
+        }
+    }
+
+    if (!currentTileData.empty()) {
+        std::cerr << "Warning: leftover data after LZ77 decompression that doesn't form a full tile (" 
+                  << currentTileData.size() << " pixels)\n";
+    }
 }
