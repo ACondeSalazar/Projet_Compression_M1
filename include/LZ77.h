@@ -11,7 +11,7 @@ struct LZ77Triplet {
     int length;
     int next;
 
-    LZ77Triplet(int o, int l, char n) : offset(o), length(l), next(n) {}
+    LZ77Triplet(int o, int l, int n) : offset(o), length(l), next(n) {}
 
     LZ77Triplet(std::tuple<int,int,int> triplet) {
         offset = std::get<0>(triplet);
@@ -24,4 +24,4 @@ void LZ77Compression(std::vector<int> & data, std::vector<LZ77Triplet> & compres
 
 void LZ77Decompression(std::vector<LZ77Triplet> & compressedData, std::vector<int> & data, int expectedSize);
 
-void decompressTilesLZ77( std::vector<LZ77Triplet>& tilesYLZ77, std::vector<Tile>& tilesY, int tileWidth, int tileHeight);
+void decompressTilesLZ77( std::vector<LZ77Triplet>& tilesYLZ77, std::vector<Tile>& tilesY, int tileWidth, int tileHeight, int totalTiles);

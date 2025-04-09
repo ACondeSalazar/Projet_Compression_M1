@@ -171,14 +171,23 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
         int stepLow = steps.first;
         int stepHigh = steps.second;
 
-   
+        /* if (!tilesY.empty()) {
+            std::cout << "First tile of tilesY before quantization:" << std::endl;
+            for (const auto& row : tilesY.front().data) {
+            for (const auto& value : row) {
+                std::cout << std::setw(2) << value << " "; //setw pour aligner les valeurs
+            }
+            std::cout << std::endl;
+            }
+        } else {
+            std::cout << "tilesY is empty." << std::endl;
+        } */
     
         for (auto& tile : tilesY) {
             quantificationuniforme(tile, stepLow,stepHigh); 
         }
 
-        /* std::cout << "First tile of tilesY:" << std::endl;
-        if (!tilesY.empty()) {
+        /* if (!tilesY.empty()) {
             std::cout << "First tile of tilesY:" << std::endl;
             for (const auto& row : tilesY.front().data) {
             for (const auto& value : row) {
@@ -209,9 +218,10 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             RLECompression(flatTile,RLETile);
             blocksLuminanceRLE.insert(blocksLuminanceRLE.end(),RLETile.begin(),RLETile.end());
 
-            std::vector<LZ77Triplet> LZ77Tile;
-            LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
-            blocksLuminanceLZ77.insert(blocksLuminanceLZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
+            flatDataY.insert(flatDataY.end(), flatTile.begin(), flatTile.end());
+            //std::vector<LZ77Triplet> LZ77Tile;
+            //LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
+            //blocksLuminanceLZ77.insert(blocksLuminanceLZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
         }
     
         for(Tile & tile : tilesCb){
@@ -221,9 +231,10 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             RLECompression(flatTile,RLETile);
             blocksColor1RLE.insert(blocksColor1RLE.end(),RLETile.begin(),RLETile.end());
 
-            std::vector<LZ77Triplet> LZ77Tile;
+            flatDataCb.insert(flatDataCb.end(), flatTile.begin(), flatTile.end());
+            /* std::vector<LZ77Triplet> LZ77Tile;
             LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
-            blocksColor1LZ77.insert(blocksColor1LZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
+            blocksColor1LZ77.insert(blocksColor1LZ77.end(),LZ77Tile.begin(),LZ77Tile.end()); */
         }
     
         for(Tile & tile : tilesCr){
@@ -233,10 +244,27 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             RLECompression(flatTile,RLETile);
             blocksColor2RLE.insert(blocksColor2RLE.end(),RLETile.begin(),RLETile.end());
 
-            std::vector<LZ77Triplet> LZ77Tile;
+            flatDataCr.insert(flatDataCr.end(), flatTile.begin(), flatTile.end());
+            /* std::vector<LZ77Triplet> LZ77Tile;
             LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
-            blocksColor2LZ77.insert(blocksColor2LZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
+            blocksColor2LZ77.insert(blocksColor2LZ77.end(),LZ77Tile.begin(),LZ77Tile.end()); */
         }
+
+        /* std::vector<LZ77Triplet> LZ77Tile;
+        std::vector<int> flatTile = getFlatTile(tilesY[0]);
+        std::cout << "Flat tile: ";
+        for (const auto& value : flatTile) {
+            std::cout << value << " ";
+        }
+        std::cout << std::endl;
+        LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
+        for (LZ77Triplet & triplet : LZ77Tile) {
+            std::cout << "Offset: " << triplet.offset << ", Length: " << triplet.length << ", Symbol: " << triplet.next << std::endl;
+        } */
+
+        LZ77Compression(flatDataY,blocksLuminanceLZ77, settings.encodingWindowSize);
+        LZ77Compression(flatDataCb,blocksColor1LZ77, settings.encodingWindowSize);
+        LZ77Compression(flatDataCr,blocksColor2LZ77, settings.encodingWindowSize);
     }
     else {
 
@@ -477,6 +505,13 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
 
     std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
     
+    int numTilesX = (imageWidth + settings.tileWidth - 1) / settings.tileWidth;
+    int numTilesY = (imageHeight + settings.tileHeight - 1) / settings.tileHeight;
+    int totalTiles = numTilesX * numTilesY;
+
+    std::cout << "Number of tiles in X direction: " << numTilesX << std::endl;
+    std::cout << "Number of tiles in Y direction: " << numTilesY << std::endl;
+    std::cout << "Total number of tiles: " << totalTiles << std::endl;
 
     std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
     std::vector<std::pair<int,int>> blocksCbRLE;
@@ -553,16 +588,28 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             std::cout << "Cb tiles: " << blocksCbLZ77.size() << std::endl;
             std::cout << "Cr tiles: " << blocksCrLZ77.size() << std::endl;
 
-            decompressTilesLZ77(tilesYLZ77, tilesY, tileWidth, tileHeight); 
-            decompressTilesLZ77(blocksCbLZ77, tilesCb, tileWidth, tileHeight); 
-            decompressTilesLZ77(blocksCrLZ77, tilesCr, tileWidth, tileHeight); 
+            decompressTilesLZ77(tilesYLZ77, tilesY, tileWidth, tileHeight, totalTiles); 
+            decompressTilesLZ77(blocksCbLZ77, tilesCb, tileWidth, tileHeight, totalTiles / 4); 
+            decompressTilesLZ77(blocksCrLZ77, tilesCr, tileWidth, tileHeight, totalTiles / 4);
+
+            /* if (!tilesY.empty()) {
+                std::cout << "First tile of tilesY:" << std::endl;
+                for (const auto& row : tilesY.front().data) {
+                    for (const auto& value : row) {
+                        std::cout << std::setw(2) << value << " "; // setw for alignment
+                    }
+                    std::cout << std::endl;
+                }
+            } else {
+                std::cout << "tilesY is empty." << std::endl;
+            } */
         }
 
         std::pair<int, int> steps = getQuantificationStep(settings.QuantizationFactor);
         int stepLow = steps.first;
         int stepHigh = steps.second;
 
-        
+        std::cout << "Quantification steps: Low = " << stepLow << ", High = " << stepHigh << std::endl;
 
         for (auto& tile : tilesCb) {
             inverseQuantificationuniforme(tile,stepLow,stepHigh); 
@@ -574,9 +621,23 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             inverseQuantificationuniforme(tile,stepLow,stepHigh); 
         }
 
+        
+
         inverseWaveletTransform53ToTiles(tilesCb);
         inverseWaveletTransform53ToTiles(tilesCr);
         inverseWaveletTransform53ToTiles(tilesY);
+
+        /* if (!tilesY.empty()) {
+            std::cout << "First tile of tilesY after inverse transform + quantization:" << std::endl;
+            for (const auto& row : tilesY.front().data) {
+                for (const auto& value : row) {
+                    std::cout << std::setw(2) << value << " "; // setw for alignment
+                }
+                std::cout << std::endl;
+            }
+        } else {
+            std::cout << "tilesY is empty." << std::endl;
+        } */
 
         reconstructImage(tilesCb, imCb,tileWidth,tileHeight);
         reconstructImage(tilesCr, imCr,tileWidth,tileHeight);
@@ -607,6 +668,12 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
                 printf("Unknown upsampling type\n");
                 return;
         }
+
+        imY.save("./img/out/Y_decompressed.pgm");
+        imCb.save("./img/out/Cb_decompressed.pgm");
+        imCr.save("./img/out/Cr_decompressed.pgm");
+        upSampledCb.save("./img/out/Cb_upsampled.pgm");
+        upSampledCr.save("./img/out/Cr_upsampled.pgm");
 
     }else{ //rle
 

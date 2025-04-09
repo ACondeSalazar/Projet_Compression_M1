@@ -13,7 +13,7 @@ void LZ77Compression(std::vector<int> & data, std::vector<LZ77Triplet> & compres
 
         int matchOffset = 0;
         int matchLength = 0;
-        int next = 0;
+        int32_t next = 0;
         
         int start = std::max(0, index - windowSize);
         int end = index;
@@ -74,17 +74,17 @@ void LZ77Decompression(std::vector<LZ77Triplet> & compressedData, std::vector<in
 }
 
 
-/* void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile> &tilesY, int tileWidth, int tileHeight){
+void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile> &tilesY, int tileWidth, int tileHeight, int nbTiles){
 
         std::vector<int> decompressedData;
 
-        LZ77Decompression(tilesYLZ77, decompressedData, tileWidth * tileHeight);
+        LZ77Decompression(tilesYLZ77, decompressedData, tileWidth * tileHeight * nbTiles);
         std::cout << "Decompressed data size: " << decompressedData.size() << std::endl;
-        if (decompressedData.size() != tileWidth * tileHeight) {
+        /*  if (decompressedData.size() != tileWidth * tileHeight) {
             std::cout << "Expected size: " << (tileWidth * tileHeight) << ", Decompressed size: " << decompressedData.size() << std::endl;
             std::cerr << "Decompressed data size does not match expected size!" << std::endl;
             return;
-        }
+        }  */
 
         int index = 0;
         while (index < decompressedData.size()) {
@@ -101,16 +101,16 @@ void LZ77Decompression(std::vector<LZ77Triplet> & compressedData, std::vector<in
                 }
             }
             tilesY.push_back(newTile);
-            std::cout << "Decompressed tile added with dimensions: " << tileWidth << "x" << tileHeight << std::endl;
+            
         }
 
-} */
+}
 
-void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile> &tilesY, int tileWidth, int tileHeight) {
+/* void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile> &tilesY, int tileWidth, int tileHeight, int nbTiles) {
     tilesY.clear();
 
-    std::vector<int> globalBuffer;           // Holds full decompressed data (for offset back-references)
-    std::vector<int> currentTileData;        // Holds pixels for the current tile
+    std::vector<int> globalBuffer;
+    std::vector<int> currentTileData;
     int expectedSize = tileWidth * tileHeight;
 
     for (const LZ77Triplet& triplet : tilesYLZ77) {
@@ -120,7 +120,6 @@ void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile>
 
         int start = globalBuffer.size() - offset;
 
-        // Copy 'length' values from globalBuffer to both globalBuffer and currentTileData
         for (int j = 0; j < length && currentTileData.size() < expectedSize; ++j) {
             if (start + j >= 0 && start + j < globalBuffer.size()) {
                 int val = globalBuffer[start + j];
@@ -153,3 +152,4 @@ void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile>
                   << currentTileData.size() << " pixels)\n";
     }
 }
+ */
