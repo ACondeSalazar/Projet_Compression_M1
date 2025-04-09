@@ -89,11 +89,15 @@ void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile>
         int index = 0;
         while (index < decompressedData.size()) {
             Tile newTile(tileWidth, tileHeight, 0, 0);
-            for (int i = 0; i < tileWidth; i++) {
-                for (int j = 0; j < tileHeight; j++) {
+            for (int i = 0; i < tileHeight; i++) {
+                for (int j = 0; j < tileWidth; j++) {
 
                     if (index < decompressedData.size()) {
-                        newTile.data[i][j] = decompressedData[index++];
+
+                        if (index < decompressedData.size()) {
+                            newTile.data[i][j] = decompressedData[index++];
+                        } 
+                        
                     } else {
                         std::cout << "out of bound en decompressant tiles lz77" << std::endl;
                     }
@@ -106,50 +110,49 @@ void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile>
 
 }
 
-/* void decompressTilesLZ77(std::vector<LZ77Triplet> &tilesYLZ77, std::vector<Tile> &tilesY, int tileWidth, int tileHeight, int nbTiles) {
-    tilesY.clear();
 
-    std::vector<int> globalBuffer;
-    std::vector<int> currentTileData;
-    int expectedSize = tileWidth * tileHeight;
 
-    for (const LZ77Triplet& triplet : tilesYLZ77) {
-        int offset = triplet.offset;
-        int length = triplet.length;
-        int next = triplet.next;
+void decompressBlocksLZ77(std::vector<LZ77Triplet> & tilesLZ77, std::vector<Block> & blocks, int nbBlocks,CompressionSettings & settings, const std::vector<std::vector<int>> quantificationMatrix ,int blockSize) {
+    std::vector<int> decompressedData;
 
-        int start = globalBuffer.size() - offset;
+    LZ77Decompression(tilesLZ77, decompressedData, blockSize * blockSize * nbBlocks);
+    std::cout << "Decompressed data size: " << decompressedData.size() << std::endl;
 
-        for (int j = 0; j < length && currentTileData.size() < expectedSize; ++j) {
-            if (start + j >= 0 && start + j < globalBuffer.size()) {
-                int val = globalBuffer[start + j];
-                globalBuffer.push_back(val);
-                currentTileData.push_back(val);
-            }
-        }
-
-        // Push the 'next' value if the tile isn't full yet
-        if (currentTileData.size() < expectedSize) {
-            globalBuffer.push_back(next);
-            currentTileData.push_back(next);
-        }
-
-        // If the tile is full, create a tile
-        if (currentTileData.size() == expectedSize) {
-            Tile newTile(tileWidth, tileHeight, 0, 0);
-            for (int i = 0; i < tileWidth; ++i) {
-                for (int j = 0; j < tileHeight; ++j) {
-                    newTile.data[i][j] = currentTileData[i * tileHeight + j]; // tileHeight, not tileWidth!
+    int index = 0;
+    while (index < decompressedData.size()) {
+        Block currentBlock(blockSize);
+        std::vector<int> flatDctMatrix(blockSize * blockSize);
+        for (int i = 0; i < blockSize; i++) {
+            for (int j = 0; j < blockSize; j++) {
+                if (index < decompressedData.size()) {
+                    flatDctMatrix[i * blockSize + j] = decompressedData[index++];
+                } else {
+                    std::cerr << "Out of bounds while decompressing blocks LZ77" << std::endl;
                 }
             }
-            tilesY.push_back(newTile);
-            currentTileData.clear();
         }
-    }
 
-    if (!currentTileData.empty()) {
-        std::cerr << "Warning: leftover data after LZ77 decompression that doesn't form a full tile (" 
-                  << currentTileData.size() << " pixels)\n";
+        currentBlock.flatDctMatrix = flatDctMatrix;
+
+        unflattenZigZag(currentBlock);
+
+        switch ((settings.transformationType)) {
+            case DCTTRANSFORM:
+                inverse_quantification_better(currentBlock, quantificationMatrix, settings.QuantizationFactor);
+                IDCT(currentBlock);
+                break;
+            case DCTIVTRANSFORM:
+                inverse_quantification_uniforme(currentBlock, settings.QuantizationFactor);
+                DCT_IV(currentBlock, false, 8);
+                break;
+            case INTDCTTRANSFORM:
+                INTIDCT( currentBlock);
+                break;
+            default:
+                std::cerr << "Unknown transformation type!" << std::endl;
+                break;
+        }
+
+        blocks.push_back(currentBlock);
     }
 }
- */

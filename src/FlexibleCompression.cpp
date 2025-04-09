@@ -368,8 +368,30 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
 
     //##########################Encodage RLE#############################
 
+        std::vector<int> flatDataLuminance;
+        std::vector<int> flatDataColor1;
+        std::vector<int> flatDataColor2; 
 
-        threads.emplace_back([&blocksLuminance, &blocksLuminanceRLE] {
+        if(settings.encodingType == LZ77){
+
+            for (Block &block : blocksLuminance) {
+                flatDataLuminance.insert(flatDataLuminance.end(), block.flatDctMatrix.begin(), block.flatDctMatrix.end());
+            }
+            LZ77Compression(flatDataLuminance,blocksLuminanceLZ77, settings.encodingWindowSize);
+
+            for (Block &block : blocksColor1) {
+                flatDataColor1.insert(flatDataColor1.end(), block.flatDctMatrix.begin(), block.flatDctMatrix.end());
+            }
+            LZ77Compression(flatDataColor1,blocksColor1LZ77, settings.encodingWindowSize);
+
+            for (Block &block : blocksColor2) {
+                flatDataColor2.insert(flatDataColor2.end(), block.flatDctMatrix.begin(), block.flatDctMatrix.end());
+            }
+            LZ77Compression(flatDataColor2,blocksColor2LZ77, settings.encodingWindowSize);
+
+        }else if(settings.encodingType == RLE){
+
+            threads.emplace_back([&blocksLuminance, &blocksLuminanceRLE] {
             for(Block & block : blocksLuminance){
             std::vector<std::pair<int,int>> RLEBlock;
         
@@ -377,32 +399,36 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
         
             blocksLuminanceRLE.insert(blocksLuminanceRLE.end(), RLEBlock.begin(), RLEBlock.end());
             }
-        });
+            });
+            
+            threads.emplace_back([&blocksColor1, &blocksColor1RLE] {
+                for(Block & block : blocksColor1){
+                std::vector<std::pair<int,int>> RLEBlock;
+            
+                RLECompression(block.flatDctMatrix, RLEBlock);
+            
+                blocksColor1RLE.insert(blocksColor1RLE.end(), RLEBlock.begin(), RLEBlock.end());
+                }
+            });
+            
+            threads.emplace_back([&blocksColor2, &blocksColor2RLE] {
+                for(Block & block : blocksColor2){
+                std::vector<std::pair<int,int>> RLEBlock;
+            
+                RLECompression(block.flatDctMatrix, RLEBlock);
+            
+                blocksColor2RLE.insert(blocksColor2RLE.end(), RLEBlock.begin(), RLEBlock.end());
+                }
+            });
         
-        threads.emplace_back([&blocksColor1, &blocksColor1RLE] {
-            for(Block & block : blocksColor1){
-            std::vector<std::pair<int,int>> RLEBlock;
-        
-            RLECompression(block.flatDctMatrix, RLEBlock);
-        
-            blocksColor1RLE.insert(blocksColor1RLE.end(), RLEBlock.begin(), RLEBlock.end());
+            for (auto &thread : threads) {
+                thread.join();
             }
-        });
-        
-        threads.emplace_back([&blocksColor2, &blocksColor2RLE] {
-            for(Block & block : blocksColor2){
-            std::vector<std::pair<int,int>> RLEBlock;
-        
-            RLECompression(block.flatDctMatrix, RLEBlock);
-        
-            blocksColor2RLE.insert(blocksColor2RLE.end(), RLEBlock.begin(), RLEBlock.end());
-            }
-        });
-    
-        for (auto &thread : threads) {
-            thread.join();
+            threads.clear();
+
         }
-        threads.clear();
+
+        
 
     }
 
@@ -539,7 +565,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
     std::vector<std::pair<int,int>> tilesCbRLE;
     std::vector<std::pair<int,int>> tilesCrRLE;
 
-    std::vector<LZ77Triplet> tilesYLZ77;
+    std::vector<LZ77Triplet> blocksYLZ77;
     std::vector<LZ77Triplet> blocksCbLZ77;
     std::vector<LZ77Triplet> blocksCrLZ77;
 
@@ -572,7 +598,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
         }else if (settings.encodingType == LZ77) { 
             
             for (int i = 0; i < channelYLZ77Size; i++) {
-                tilesYLZ77.push_back(BlocksLZ77Encoded[i]);
+                blocksYLZ77.push_back(BlocksLZ77Encoded[i]);
             }
 
             for (int i = channelYLZ77Size; i < channelYLZ77Size + channelCbLZ77Size; i++) {
@@ -584,11 +610,11 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             }
 
             std::cout << "Encoded tiles sizes:" << std::endl;
-            std::cout << "Y tiles: " << tilesYLZ77.size() << std::endl;
+            std::cout << "Y tiles: " << blocksYLZ77.size() << std::endl;
             std::cout << "Cb tiles: " << blocksCbLZ77.size() << std::endl;
             std::cout << "Cr tiles: " << blocksCrLZ77.size() << std::endl;
 
-            decompressTilesLZ77(tilesYLZ77, tilesY, tileWidth, tileHeight, totalTiles); 
+            decompressTilesLZ77(blocksYLZ77, tilesY, tileWidth, tileHeight, totalTiles); 
             decompressTilesLZ77(blocksCbLZ77, tilesCb, tileWidth, tileHeight, totalTiles / 4); 
             decompressTilesLZ77(blocksCrLZ77, tilesCr, tileWidth, tileHeight, totalTiles / 4);
 
@@ -675,16 +701,37 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
         upSampledCb.save("./img/out/Cb_upsampled.pgm");
         upSampledCr.save("./img/out/Cr_upsampled.pgm");
 
-    }else{ //rle
+    }else{ //dct
 
-            //on sépare les 3 canaux
-        threads.emplace_back([&BlocksRLEEncoded, &blocksYRLE, channelYRLESize, &blocksY, &imY, &settings] {
-            for (int i = 0; i < channelYRLESize; i++) {
-                blocksYRLE.push_back(BlocksRLEEncoded[i]);
+        int numBlocksX = (imageWidth + 7) / 8;
+        int numBlocksY = (imageHeight + 7) / 8;
+        int totalBlocks = numBlocksX * numBlocksY;
+
+         //on sépare les 3 canaux
+        
+        
+
+        
+
+           
+        threads.emplace_back([&BlocksRLEEncoded, &blocksYRLE, channelYRLESize, &blocksY, &imY, &settings, &totalBlocks, &blocksYLZ77, channelYLZ77Size, channelCbLZ77Size, channelCrLZ77Size, &BlocksLZ77Encoded] {
+            
+            if(settings.encodingType == RLE){
+                for (int i = 0; i < channelYRLESize; i++) {
+                    blocksYRLE.push_back(BlocksRLEEncoded[i]);
+                }
+                decompressBlocksRLE(blocksYRLE, blocksY,quantificationLuminance , &settings);
+                printf("blocksY size: %lu\n", blocksY.size());
+            }else if(settings.encodingType == LZ77){
+
+                for (int i = 0; i < channelYLZ77Size; i++) {
+                    blocksYLZ77.push_back(BlocksLZ77Encoded[i]);
+                }
+
+                decompressBlocksLZ77(blocksYLZ77, blocksY, totalBlocks, settings, quantificationLuminance);
+                printf("blocksY size: %lu\n", blocksY.size());
             }
-
-            decompressBlocksRLE(blocksYRLE, blocksY,quantificationLuminance , &settings);
-            printf("blocksY size: %lu\n", blocksY.size());
+            
 
             printf("Reconstructing Y channel\n");
             reconstructImage(blocksY, imY, 8);
@@ -693,13 +740,23 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
         });
         
         // reconstruction de Cb
-        threads.emplace_back([&BlocksRLEEncoded, &blocksCbRLE, channelYRLESize, channelCbRLESize, &blocksCb, &imCb, &upSampledCb, &settings] {
-            for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
-                blocksCbRLE.push_back(BlocksRLEEncoded[i]);
-            }
+        threads.emplace_back([&BlocksRLEEncoded, &blocksCbRLE, channelYRLESize, channelCbRLESize, &blocksCb, &imCb, &upSampledCb, &settings, &totalBlocks, &blocksCbLZ77, channelYLZ77Size, channelCbLZ77Size, channelCrLZ77Size, &BlocksLZ77Encoded] {
+            
 
-            decompressBlocksRLE(blocksCbRLE, blocksCb, quantificationChrominance, &settings);
-            printf("blocksCb size: %lu\n", blocksCb.size());
+            if (settings.encodingType == RLE) {
+                for (int i = channelYRLESize; i < channelYRLESize + channelCbRLESize; i++) {
+                    blocksCbRLE.push_back(BlocksRLEEncoded[i]);
+                }
+                decompressBlocksRLE(blocksCbRLE, blocksCb, quantificationChrominance, &settings);
+                printf("blocksCb size: %lu\n", blocksCb.size());
+            } else if (settings.encodingType == LZ77) {
+
+                for (int i = channelYLZ77Size; i < channelYLZ77Size + channelCbLZ77Size; i++) {
+                    blocksCbLZ77.push_back(BlocksLZ77Encoded[i]);
+                }
+                decompressBlocksLZ77(blocksCbLZ77, blocksCb, totalBlocks / 4, settings, quantificationChrominance);
+                printf("blocksCb size: %lu\n", blocksCb.size());
+            }
 
             printf("Reconstructing Cb channel\n");
             reconstructImage(blocksCb, imCb, 8);
@@ -730,15 +787,22 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
         });
 
         //reconstruction de Cr
-        threads.emplace_back([&BlocksRLEEncoded, &blocksCrRLE, channelYRLESize, channelCbRLESize, channelCrRLESize, &blocksCr, &imCr, &upSampledCr, &settings] {
-            for (int i = channelYRLESize + channelCbRLESize; i < channelYRLESize + channelCbRLESize + channelCrRLESize; i++) {
-                blocksCrRLE.push_back(BlocksRLEEncoded[i]);
+        threads.emplace_back([&BlocksRLEEncoded, &blocksCrRLE, channelYRLESize, channelCbRLESize, channelCrRLESize, &blocksCr, &imCr, &upSampledCr, &settings, &totalBlocks, &blocksCrLZ77, channelYLZ77Size, channelCbLZ77Size, channelCrLZ77Size , &BlocksLZ77Encoded] {
+
+            if (settings.encodingType == RLE) {
+                for (int i = channelYRLESize + channelCbRLESize; i < channelYRLESize + channelCbRLESize + channelCrRLESize; i++) {
+                    blocksCrRLE.push_back(BlocksRLEEncoded[i]);
+                }
+                decompressBlocksRLE(blocksCrRLE, blocksCr, quantificationChrominance, &settings);
+                printf("blocksCr size: %lu\n", blocksCr.size());
+            } else if (settings.encodingType == LZ77) {
+
+                for (int i = channelYLZ77Size + channelCbLZ77Size; i < channelYLZ77Size + channelCbLZ77Size + channelCrLZ77Size; i++) {
+                    blocksCrLZ77.push_back(BlocksLZ77Encoded[i]);
+                }
+                decompressBlocksLZ77(blocksCrLZ77, blocksCr, totalBlocks / 4, settings, quantificationChrominance);
+                printf("blocksCr size: %lu\n", blocksCr.size());
             }
-
-            decompressBlocksRLE(blocksCrRLE, blocksCr , quantificationChrominance,  &settings);
-            printf("blocksCr size: %lu\n", blocksCr.size());
-
-            
 
             printf("Reconstructing Cr channel\n");
             reconstructImage(blocksCr, imCr, 8);

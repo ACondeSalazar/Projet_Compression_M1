@@ -206,12 +206,6 @@ void compressFlexInterface(SDL_Renderer * renderer){
     //compression
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    /* customCompressionSettings.colorFormat = YCBCRFORMAT;
-    customCompressionSettings.blurType = GAUSSIANBLUR;
-    customCompressionSettings.samplingType = BILENARSAMPLING;
-    customCompressionSettings.transformationType = DCTTRANSFORM;
-    customCompressionSettings.QuantizationFactor = 50; */
-
     compressionFlex(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal, customCompressionSettings);
 
     compressionTime = std::chrono::high_resolution_clock::now() - startTime;
@@ -236,6 +230,20 @@ void compressFlexInterface(SDL_Renderer * renderer){
     psnr = PSNR(imgOriginal, imOut2);
 
     decompressedInitialized = true;
+}
+
+void launchComparator(){
+
+
+    compressionFlex(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal, customCompressionSettings);
+    sizeOriginal = getFileSize(originalFilePathName);
+    sizeCompressed = getFileSize(compressedFilePathName);
+    tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
+    decompressionFlex(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, customCompressionSettings);
+    ImageBase imOut2;
+    imOut2.load(decompressedFilePathName.data());
+    psnr = PSNR(imgOriginal, imOut2);
+
 }
 
 int main(int argc, char **argv)
@@ -406,13 +414,13 @@ int main(int argc, char **argv)
 
 
         if(decompressedInitialized){
-            ImGui::Text("Taux de compression : %f", tauxCompression);
-            ImGui::Text("PSNR : %f", psnr);
+            ImGui::Text("Taux de compression : %.2f", tauxCompression);
+            ImGui::Text("PSNR : %.2f", psnr);
 
             if(ImGui::TreeNode("More compression info")){
                 ImGui::Text("De %.0f KB à %.0f KB",  sizeOriginal / 1000.0, sizeCompressed / 1000.0);
-                ImGui::Text("Temps compression : %.3f seconds", compressionTime.count());
-                ImGui::Text("Temps decompression : %.3f seconds", decompressionTime.count());
+                ImGui::Text("Temps compression : %.1f seconds", compressionTime.count());
+                ImGui::Text("Temps decompression : %.1f seconds", decompressionTime.count());
 
                 ImGui::Text("Chemin fichier compressé: %s", compressedFilePathName.c_str());
                 ImGui::Text("Chemin image decompressé: %s", decompressedFilePathName.c_str());
@@ -429,6 +437,7 @@ int main(int argc, char **argv)
             config.path = ".";
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ppm, .png", config);
         }
+        
         ImGui::SetNextWindowSize(ImVec2(800,500), ImGuiCond_Once);
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
             if (ImGuiFileDialog::Instance()->IsOk()) { 
@@ -440,6 +449,45 @@ int main(int argc, char **argv)
                 originalFilePathName = filePathName;
 
                 LoadTexture(originalFilePathName, widthOriginal, heightOriginal, renderer, &textureOriginal);
+
+                originalInitialized = true;
+                decompressedInitialized = false;
+
+                textureDecompressed = nullptr;
+
+
+                resetView();
+                
+                
+                
+            }
+
+            ImGuiFileDialog::Instance()->Close();
+        }
+
+        if (ImGui::Button("Choisir fichier")) {
+            IGFD::FileDialogConfig config2;
+            config2.path = ".";
+            ImGuiFileDialog::Instance()->OpenDialog("chooseCompressed", "Choose Compressed file", ".img", config2);
+        }
+        ImGui::SetNextWindowSize(ImVec2(800,500), ImGuiCond_Once);
+        if (ImGuiFileDialog::Instance()->Display("chooseCompressed")) {
+            if (ImGuiFileDialog::Instance()->IsOk()) { 
+                std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+                std::cout << filePath << std::endl;
+                std::cout << filePathName << std::endl;
+
+                ImageBase imOut;
+                decompressionFlex(filePathName.data(), decompressedFilePathName.data(), &imOut, customCompressionSettings);
+    
+                std::cout << "finished decompression" << std::endl;
+                originalFilePathName = decompressedFilePathName;
+
+                widthOriginal = imOut.getWidth();
+                heightOriginal = imOut.getHeight();
+
+                LoadTexture(decompressedFilePathName, widthOriginal, heightOriginal, renderer, &textureOriginal);
 
                 originalInitialized = true;
                 decompressedInitialized = false;
