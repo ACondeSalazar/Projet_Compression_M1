@@ -105,8 +105,8 @@ void deleteTreeRecursive(TreeNode * node){
 
 void HuffmanEncoding(vector<pair<int,int>> & RLEData, vector<huffmanCodeSingle> &  codeTable){
 
-    std::cout << "RLE Huffman Encoding" << std::endl;
-    std::cout << RLEData.size() << " RLE pairs to encode." << std::endl;
+    //std::cout << "RLE Huffman Encoding" << std::endl;
+    //std::cout << RLEData.size() << " RLE pairs to encode." << std::endl;
 
     unordered_map<pair<int,int>, int, pair_hash> frequencyTable; //pas vraiment utile 
     for(auto & pair : RLEData){
@@ -420,8 +420,8 @@ void deleteTreeRecursiveLZ77(TreeNodeLZ77 * node){
 
 void HuffmanEncodingLZ77(vector<LZ77Triplet> & LZ77Data, vector<huffmanCodeSingleLZ77> &codeTable){
 
-    std::cout << "LZ77 Huffman Encoding" << std::endl;
-    std::cout << LZ77Data.size() << " LZ77 triplets to encode." << std::endl;
+    //std::cout << "LZ77 Huffman Encoding" << std::endl;
+    //std::cout << LZ77Data.size() << " LZ77 triplets to encode." << std::endl;
 
     //return;
     unordered_map<tuple<int,int, int>, int, triplet_hash> frequencyTable; 

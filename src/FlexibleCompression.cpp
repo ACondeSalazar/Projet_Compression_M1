@@ -34,7 +34,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
     imIn.load(cNomImgLue);
 
     //##########################Transformation des couleurs#############################
-    printf("Transformation de l'espace couleur\n");
+    //printf("Transformation de l'espace couleur\n");
 
     ImageBase luminance(imIn.getWidth(), imIn.getHeight(), false);
     ImageBase colorChannel1(imIn.getWidth(), imIn.getHeight(), false);
@@ -43,15 +43,15 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
 
     switch (settings.colorFormat) {
         case YCBCRFORMAT:
-            std::cout << "separation Y Cb Cr" << std::endl;
+            //std::cout << "separation Y Cb Cr" << std::endl;
             RGB_to_YCbCr(imIn, luminance, colorChannel1, colorChannel2);
             break;
         case YCOCGFORMAT:
-            std::cout << "separation Y Co Cg" << std::endl;
+            //std::cout << "separation Y Co Cg" << std::endl;
             RGB_to_YCOCG(imIn, luminance, colorChannel1, colorChannel2);
             break;
         case YUVFORMAT:
-            std::cout << "YUV separation not implemented" << std::endl;
+            //std::cout << "YUV separation not implemented" << std::endl;
             return ;
             break;
     
@@ -61,27 +61,27 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
     colorChannel1.save("./img/out/Cb.pgm");
     colorChannel2.save("./img/out/Cr.pgm");
 
-    printf("  Fini\n");
+    //printf("  Fini\n");
 
     //##########################Flou sur les composantes couleurs#############################
-    printf("Flou \n");
+    //printf("Flou \n");
 
     ImageBase imColorChannel1Flou(imIn.getWidth(), imIn.getHeight(), false);
     ImageBase imColorChannel2Flou(imIn.getWidth(), imIn.getHeight(), false);
 
     switch (settings.blurType) {
         case GAUSSIANBLUR:
-            std::cout << "Gaussian blur" << std::endl;
+            //std::cout << "Gaussian blur" << std::endl;
             gaussianBlur(colorChannel1, imColorChannel1Flou);
             gaussianBlur(colorChannel2, imColorChannel2Flou);
             break;
         case MEDIANBLUR:
-            std::cout << "Median blur" << std::endl;
+            //std::cout << "Median blur" << std::endl;
             medianBlur(colorChannel1, imColorChannel1Flou);
             medianBlur(colorChannel2, imColorChannel2Flou);
             break;
         case BILATERALBLUR:
-            std::cout << "Bilateral blur" << std::endl;
+            //std::cout << "Bilateral blur" << std::endl;
             bilateralBlur(colorChannel1, imColorChannel1Flou);
             bilateralBlur(colorChannel2, imColorChannel2Flou);
             break;
@@ -90,7 +90,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
 
     //##########################DownSampling des composantes couleurs#############################
 
-    printf("Sous échantillonage des Composantes couleurs\n");
+    //printf("Sous échantillonage des Composantes couleurs\n");
 
     ImageBase downSampledColor1(imIn.getWidth() / 2, imIn.getHeight() /2, false);
     ImageBase downSampledColor2(imIn.getWidth() / 2, imIn.getHeight() /2, false);
@@ -99,22 +99,22 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
 
     switch (settings.samplingType) {
         case NORMALSAMPLING:
-            std::cout << "Basic sampling" << std::endl;
+            //std::cout << "Basic sampling" << std::endl;
             down_sampling(imColorChannel1Flou, downSampledColor1);
             down_sampling(imColorChannel2Flou, downSampledColor2);
             break;
         case BILENARSAMPLING:
-            std::cout << "Bilinear sampling" << std::endl;
+            //std::cout << "Bilinear sampling" << std::endl;
             down_sampling_bilinear(imColorChannel1Flou, downSampledColor1);
             down_sampling_bilinear(imColorChannel2Flou, downSampledColor2);
             break;
         case BICUBICSAMPLING:
-            std::cout << "Bicubic sampling a implementer" << std::endl;
+            //std::cout << "Bicubic sampling a implementer" << std::endl;
             //down_sampling_bicubic(imColorChannel1Flou, downSampledColor1);
             //down_sampling_bicubic(imColorChannel2Flou, downSampledColor2);
             break;
         case LANCZOSSAMPLING:
-            std::cout << "Lanczos sampling a implementer" << std::endl;
+            //std::cout << "Lanczos sampling a implementer" << std::endl;
             //down_sampling_lanczos(imColorChannel1Flou, downSampledColor1);
             //down_sampling_lanczos(imColorChannel2Flou, downSampledColor2);
             break;
@@ -123,7 +123,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
 
     downSampledColor1.save("./img/out/downSampledCb.pgm");
     downSampledColor2.save("./img/out/downSampledCr.pgm");
-    printf("  Fini\n");
+    //printf("  Fini\n");
 
 
     //##########################Transformation#############################
@@ -149,7 +149,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
     int tileHeight = settings.tileHeight;
 
     if(settings.transformationType == DWTTRANSFORM){
-        std::cout << "wavelet transform" << std::endl;
+        //std::cout << "wavelet transform" << std::endl;
 
         tilesY = getTiles(luminance, tilewidth,tileHeight); 
         tilesCb = getTiles(downSampledColor1, tilewidth,tileHeight);
@@ -166,7 +166,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
 
         std::pair<int,int> steps = getQuantificationStep(settings.QuantizationFactor);
 
-        std::cout << "Quantification steps: Low = " << steps.first << ", High = " << steps.second << std::endl;
+        //std::cout << "Quantification steps: Low = " << steps.first << ", High = " << steps.second << std::endl;
 
         int stepLow = steps.first;
         int stepHigh = steps.second;
@@ -442,10 +442,10 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
         allBlocksRLE.insert(allBlocksRLE.end(), blocksLuminanceRLE.begin(), blocksLuminanceRLE.end());
         allBlocksRLE.insert(allBlocksRLE.end(), blocksColor1RLE.begin(), blocksColor1RLE.end());
         allBlocksRLE.insert(allBlocksRLE.end(), blocksColor2RLE.begin(), blocksColor2RLE.end());
-        std::cout << "all rle size " << allBlocksRLE.size() << std::endl;
+        //std::cout << "all rle size " << allBlocksRLE.size() << std::endl;
         std::vector<huffmanCodeSingle> codeTable;
         HuffmanEncoding(allBlocksRLE, codeTable);
-        std::cout << "Table size : " << codeTable.size() << std::endl;
+        //std::cout << "Table size : " << codeTable.size() << std::endl;
 
         
 
@@ -465,14 +465,14 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
         std::vector<huffmanCodeSingleLZ77> codeTableLZ77;
 
         HuffmanEncodingLZ77(allBlocksLZ77, codeTableLZ77);
-        std::cout << "Table size : " << codeTableLZ77.size() << std::endl;
+        //std::cout << "Table size : " << codeTableLZ77.size() << std::endl;
 
         double totalLength = 0;
         for (const auto& code : codeTableLZ77) {
             totalLength += code.length;
         }
         double meanLength = totalLength / codeTableLZ77.size();
-        std::cout << "Mean length of Huffman codes: " << meanLength << std::endl;
+        //std::cout << "Mean length of Huffman codes: " << meanLength << std::endl;
 
         writeHuffmanEncodedLZ77(allBlocksLZ77, codeTableLZ77,
                 imIn.getWidth(), imIn.getHeight(), downSampledColor1.getWidth(),downSampledColor2.getHeight(),
@@ -506,10 +506,9 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
     //##########################Lecture du fichier#############################
 
     readSettings(outFileName, settings);
-    //settings.printSettings();
+    settings.printSettings();
     
 
-    printf("Reading huffman encoded file\n");
 
     if(settings.encodingType == RLE){
 
@@ -517,7 +516,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             codeTable, BlocksRLEEncoded,
             imageWidth, imageHeight, downSampledWidth, downSampledHeight,
             channelYRLESize, channelCbRLESize, channelCrRLESize, settings);
-            printf("Code table size: %lu\n", codeTable.size());
+            //printf("Code table size: %lu\n", codeTable.size());
 
     }else if(settings.encodingType == LZ77){
 
@@ -525,19 +524,14 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             codeTableLZ77, BlocksLZ77Encoded,
             imageWidth, imageHeight, downSampledWidth, downSampledHeight,
             channelYLZ77Size, channelCbLZ77Size, channelCrLZ77Size, settings);
-            printf("Code table size: %lu\n", codeTableLZ77.size());
+            //printf("Code table size: %lu\n", codeTableLZ77.size());
 
     }
 
-    std::cout<<"size downSampledWidth "<<downSampledWidth<<" "<<downSampledHeight<<std::endl;
     
     int numTilesX = (imageWidth + settings.tileWidth - 1) / settings.tileWidth;
     int numTilesY = (imageHeight + settings.tileHeight - 1) / settings.tileHeight;
     int totalTiles = numTilesX * numTilesY;
-
-    std::cout << "Number of tiles in X direction: " << numTilesX << std::endl;
-    std::cout << "Number of tiles in Y direction: " << numTilesY << std::endl;
-    std::cout << "Total number of tiles: " << totalTiles << std::endl;
 
     std::vector<std::pair<int,int>> blocksYRLE; //les blocs applatis et encodés en RLE
     std::vector<std::pair<int,int>> blocksCbRLE;
@@ -608,11 +602,6 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
             for (int i = channelYLZ77Size + channelCbLZ77Size; i < channelYLZ77Size + channelCbLZ77Size + channelCrLZ77Size; i++) {
                 blocksCrLZ77.push_back(BlocksLZ77Encoded[i]);
             }
-
-            std::cout << "Encoded tiles sizes:" << std::endl;
-            std::cout << "Y tiles: " << blocksYLZ77.size() << std::endl;
-            std::cout << "Cb tiles: " << blocksCbLZ77.size() << std::endl;
-            std::cout << "Cr tiles: " << blocksCrLZ77.size() << std::endl;
 
             decompressTilesLZ77(blocksYLZ77, tilesY, tileWidth, tileHeight, totalTiles); 
             decompressTilesLZ77(blocksCbLZ77, tilesCb, tileWidth, tileHeight, totalTiles / 4); 
@@ -721,7 +710,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
                     blocksYRLE.push_back(BlocksRLEEncoded[i]);
                 }
                 decompressBlocksRLE(blocksYRLE, blocksY,quantificationLuminance , &settings);
-                printf("blocksY size: %lu\n", blocksY.size());
+                //printf("blocksY size: %lu\n", blocksY.size());
             }else if(settings.encodingType == LZ77){
 
                 for (int i = 0; i < channelYLZ77Size; i++) {
@@ -729,13 +718,13 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
                 }
 
                 decompressBlocksLZ77(blocksYLZ77, blocksY, totalBlocks, settings, quantificationLuminance);
-                printf("blocksY size: %lu\n", blocksY.size());
+                //printf("blocksY size: %lu\n", blocksY.size());
             }
             
 
-            printf("Reconstructing Y channel\n");
+            //printf("Reconstructing Y channel\n");
             reconstructImage(blocksY, imY, 8);
-            printf("saving Y channel\n");
+            //printf("saving Y channel\n");
             imY.save("./img/out/Y_decompressed.pgm");
         });
         
@@ -748,34 +737,34 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
                     blocksCbRLE.push_back(BlocksRLEEncoded[i]);
                 }
                 decompressBlocksRLE(blocksCbRLE, blocksCb, quantificationChrominance, &settings);
-                printf("blocksCb size: %lu\n", blocksCb.size());
+                //printf("blocksCb size: %lu\n", blocksCb.size());
             } else if (settings.encodingType == LZ77) {
 
                 for (int i = channelYLZ77Size; i < channelYLZ77Size + channelCbLZ77Size; i++) {
                     blocksCbLZ77.push_back(BlocksLZ77Encoded[i]);
                 }
                 decompressBlocksLZ77(blocksCbLZ77, blocksCb, totalBlocks / 4, settings, quantificationChrominance);
-                printf("blocksCb size: %lu\n", blocksCb.size());
+                //printf("blocksCb size: %lu\n", blocksCb.size());
             }
 
-            printf("Reconstructing Cb channel\n");
+            //printf("Reconstructing Cb channel\n");
             reconstructImage(blocksCb, imCb, 8);
 
             switch (settings.samplingType) {
                 case NORMALSAMPLING:
-                    printf("Normal upsampling\n");
+                    //printf("Normal upsampling\n");
                     up_sampling(imCb, upSampledCb);
                     break;
                 case BILENARSAMPLING:
-                    printf("Bilinear upsampling (same as normal sampling ??)\n");
+                    //printf("Bilinear upsampling (same as normal sampling ??)\n");
                     up_sampling(imCb, upSampledCb);
                     break;
                 case BICUBICSAMPLING:
-                    printf("Bicubic upsampling\n");
+                    //printf("Bicubic upsampling\n");
                     up_sampling_bicubic(imCb, upSampledCb);
                     break;
                 case LANCZOSSAMPLING:
-                    printf("Lanczos upsampling\n");
+                    //printf("Lanczos upsampling\n");
                     up_sampling_lanczos(imCb, upSampledCb);
                     break;
                 default:
@@ -794,34 +783,34 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
                     blocksCrRLE.push_back(BlocksRLEEncoded[i]);
                 }
                 decompressBlocksRLE(blocksCrRLE, blocksCr, quantificationChrominance, &settings);
-                printf("blocksCr size: %lu\n", blocksCr.size());
+                //printf("blocksCr size: %lu\n", blocksCr.size());
             } else if (settings.encodingType == LZ77) {
 
                 for (int i = channelYLZ77Size + channelCbLZ77Size; i < channelYLZ77Size + channelCbLZ77Size + channelCrLZ77Size; i++) {
                     blocksCrLZ77.push_back(BlocksLZ77Encoded[i]);
                 }
                 decompressBlocksLZ77(blocksCrLZ77, blocksCr, totalBlocks / 4, settings, quantificationChrominance);
-                printf("blocksCr size: %lu\n", blocksCr.size());
+                //printf("blocksCr size: %lu\n", blocksCr.size());
             }
 
-            printf("Reconstructing Cr channel\n");
+            //printf("Reconstructing Cr channel\n");
             reconstructImage(blocksCr, imCr, 8);
 
             switch (settings.samplingType) {
                 case NORMALSAMPLING:
-                    printf("Normal upsampling\n");
+                    //printf("Normal upsampling\n");
                     up_sampling(imCr, upSampledCr);
                     break;
                 case BILENARSAMPLING:
-                    printf("Bilinear upsampling(il faut une meilleur fonction \n");
+                    //printf("Bilinear upsampling(il faut une meilleur fonction \n");
                     up_sampling(imCr, upSampledCr);
                     break;
                 case BICUBICSAMPLING:
-                    printf("Bicubic upsampling\n");
+                    //printf("Bicubic upsampling\n");
                     up_sampling_bicubic(imCr, upSampledCr);
                     break;
                 case LANCZOSSAMPLING:
-                    printf("Lanczos upsampling\n");
+                    //printf("Lanczos upsampling\n");
                     up_sampling_lanczos(imCr, upSampledCr);
                     break;
                 default:
@@ -853,34 +842,34 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
     }
 
     
-    printf("Image channel sizes:\n");
+    /* printf("Image channel sizes:\n");
     printf("Y channel: %dx%d\n", imY.getWidth(), imY.getHeight());
     printf("Cb channel: %dx%d\n", upSampledCb.getWidth(), upSampledCb.getHeight());
-    printf("Cr channel: %dx%d\n", upSampledCr.getWidth(), upSampledCr.getHeight());
+    printf("Cr channel: %dx%d\n", upSampledCr.getWidth(), upSampledCr.getHeight()); */
 
     //##########################Reconstruction de l'image a partir des 3 canaux#############################
 
-    printf("Blocks decoding\n");
+    //printf("Blocks decoding\n");
 
-    printf("Reconstructing image from blocks\n");
+    //printf("Reconstructing image from blocks\n");
 
-    printf("Reconstructing image from channels\n");
+    //printf("Reconstructing image from channels\n");
     switch (settings.colorFormat) {
         case YCBCRFORMAT:
-            std::cout << "Reconstructing YCbCr to RGB" << std::endl;
+            //std::cout << "Reconstructing YCbCr to RGB" << std::endl;
             YCbCr_to_RGB(imY, upSampledCb, upSampledCr, *imOut);
             break;
         case YCOCGFORMAT:
-            std::cout << "Reconstructing YCoCg to RGB" << std::endl;
+            //std::cout << "Reconstructing YCoCg to RGB" << std::endl;
             YCOCG_to_RGB(imY, upSampledCb, upSampledCr, *imOut);
             break;
         case YUVFORMAT:
-            std::cout << "YUV reconstruction not implemented" << std::endl;
+            //std::cout << "YUV reconstruction not implemented" << std::endl;
             return;
             break;
     }
 
-    printf("Saving decompressed image\n");
+    //printf("Saving decompressed image\n");
     std::string cNomImgOutStr = cNomImgOut;
     (*imOut).save(cNomImgOutStr.data());
     

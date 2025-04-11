@@ -21,6 +21,9 @@
 #include "ImGuiFileDialog.h"
 
 #include <chrono>
+#include <fstream>
+#include <iomanip>
+
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -232,17 +235,111 @@ void compressFlexInterface(SDL_Renderer * renderer){
     decompressedInitialized = true;
 }
 
+
+void logResultsToCSV(const std::string& filename, const std::string& image,
+                     const std::string& transform, const std::string& encoding,
+                     int quantFactor, int windowSize,
+                     int sizeOriginal, int sizeCompressed,
+                     double tauxCompression, double psnr) {
+    
+    std::ofstream file;
+    bool fileExists = std::ifstream(filename).good();
+
+    file.open(filename, std::ios::app);
+
+    if (!fileExists) {
+        file << "Image,Transformation,Encoding,QuantizationFactor,WindowSize,"
+             << "OriginalSize,CompressedSize,CompressionRate,PSNR\n";
+    }
+
+    file << image << ","
+         << transform << ","
+         << encoding << ","
+         << quantFactor << ","
+         << windowSize << ","
+         << sizeOriginal << ","
+         << sizeCompressed << ","
+         << std::fixed << std::setprecision(2) << tauxCompression << ","
+         << std::fixed << std::setprecision(2) << psnr << "\n";
+
+    file.close();
+}
+
+
 void launchComparator(){
 
+        std::vector<std::string> originalFilePathNames = {
+        "./img/bridge4K.ppm", "./img/sample4k.ppm", "./img/ice4K.ppm",
+        "./img/cat4K.ppm", "./img/4Kmyrtille.ppm"
+    };
 
-    compressionFlex(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal, customCompressionSettings);
-    sizeOriginal = getFileSize(originalFilePathName);
-    sizeCompressed = getFileSize(compressedFilePathName);
-    tauxCompression = (double)sizeOriginal/(double)sizeCompressed;
-    decompressionFlex(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, customCompressionSettings);
-    ImageBase imOut2;
-    imOut2.load(decompressedFilePathName.data());
-    psnr = PSNR(imgOriginal, imOut2);
+    std::vector<TransformationType> transformationTypes = {DCTTRANSFORM, DWTTRANSFORM};
+    std::vector<EncodingType> encodingTypes = {RLE, LZ77};
+    std::vector<int> tileSizes = {120, 120, 240, 240, 480, 270, 1920, 1080};
+    std::vector<int> quantizationFactors = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+    std::vector<int> windowSizes = {5, 10, 20, 100, 500};
+
+    CompressionSettings settings;
+
+    for (auto& filePath : originalFilePathNames) {
+        for (const auto& transform : transformationTypes) {
+            bool useTileSize = (transform == DWTTRANSFORM);
+
+            int tileLoopEnd = useTileSize ? tileSizes.size() : 2;
+            for (int i = 0; i < tileLoopEnd; i += 2) {
+                int tileWidth = useTileSize ? tileSizes[i] : 0;
+                int tileHeight = useTileSize ? tileSizes[i + 1] : 0;
+
+                for (const auto& encoding : encodingTypes) {
+                    bool useWindowSize = (encoding == LZ77);
+                    const std::vector<int>& windows = useWindowSize ? windowSizes : std::vector<int>{0};
+
+                    for (const auto& windowSize : windows) {
+                        for (const auto& quantFactor : quantizationFactors) {
+                            
+                            settings.colorFormat = YCBCRFORMAT;
+                            settings.blurType = BILATERALBLUR;
+                            settings.samplingType = BILENARSAMPLING;
+                            settings.transformationType = transform;
+                            settings.QuantizationFactor = quantFactor;
+                            settings.tileWidth = tileWidth;
+                            settings.tileHeight = tileHeight;
+                            settings.encodingType = encoding;
+                            settings.encodingWindowSize = windowSize;
+                            
+                            
+
+                            imgOriginal.load(filePath.data());
+                            compressionFlex(filePath.data(), compressedFilePathName.data(), imgOriginal, settings);
+
+                            sizeOriginal = getFileSize(filePath);
+                            sizeCompressed = getFileSize(compressedFilePathName);
+                            tauxCompression = (double)sizeOriginal / (double)sizeCompressed;
+
+                            decompressionFlex(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, settings);
+                            ImageBase imOut2;
+                            imOut2.load(decompressedFilePathName.data());
+                            psnr = PSNR(imgOriginal, imOut2);
+
+                            logResultsToCSV(
+                                "results.csv",
+                                filePath,
+                                transform == DCTTRANSFORM ? "DCT" : "DWT",
+                                encoding == RLE ? "RLE" : "LZ77",
+                                quantFactor,
+                                windowSize,
+                                sizeOriginal,
+                                sizeCompressed,
+                                tauxCompression,
+                                psnr
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
 }
 
@@ -375,6 +472,9 @@ int main(int argc, char **argv)
             ImGui::TreePop();
         }
         
+        if(ImGui::Button("Launch tests")){
+                launchComparator();
+            }
 
         if(originalInitialized){
             ImGui::Text("Chemin vers l'image : %s", originalFilePathName.c_str());
