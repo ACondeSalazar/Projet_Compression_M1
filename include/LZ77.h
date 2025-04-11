@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.h"
+#include <cstdint>
 #include <tuple>
 #include <vector>
 #include "TransformationQuantification.h"
