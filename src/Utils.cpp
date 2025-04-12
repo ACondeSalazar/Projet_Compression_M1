@@ -55,6 +55,18 @@ float PSNR(ImageBase & im1, ImageBase & im2){
     return 10 * log10(pow(255, 2) / mse);
 }
 
+float PSNRptr(ImageBase & im1, ImageBase * im2){
+    float mse = 0;
+    for (int i = 0; i < im1.getHeight(); i++){
+        for (int j = 0; j < im1.getWidth(); j++){
+            mse += pow(im1[i*3][j*3 + 0] - (*im2)[i*3][j*3 + 0], 2);
+            mse += pow(im1[i*3][j*3 + 1] - (*im2)[i*3][j*3 + 1], 2);
+            mse += pow(im1[i*3][j*3 + 2] - (*im2)[i*3][j*3 + 2], 2);
+        }
+    }
+    mse /= (im1.getHeight() * im1.getWidth() * 3);
+    return 10 * log10(pow(255, 2) / mse);
+}
 
 
 
@@ -65,4 +77,21 @@ long getFileSize(const std::string& filePath) {
         return -1;
     }
     return file.tellg();
+}
+
+
+void readSettings(const std::string& filename, CompressionSettings& settings) {
+    std::ifstream inFile(filename, std::ios::binary);
+    if (!inFile) {
+        std::cerr << "Error opening file for reading settings!" << std::endl;
+        return;
+    }
+
+    inFile.read(reinterpret_cast<char*>(&settings), sizeof(settings));
+
+    if (!inFile) {
+        std::cerr << "Error reading settings from file!" << std::endl;
+    }
+
+    inFile.close();
 }

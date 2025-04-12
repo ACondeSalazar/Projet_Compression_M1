@@ -31,6 +31,11 @@ enum TransformationType{
     DCTIVTRANSFORM, // dct IV
 };
 
+enum EncodingType{
+    RLE,
+    LZ77
+};
+
 struct CompressionSettings {
 
     ColorFormat colorFormat;
@@ -45,7 +50,20 @@ struct CompressionSettings {
     int tileWidth = 120;
     int tileHeight = 120;
 
+    EncodingType encodingType = LZ77;
+    int encodingWindowSize = 10000;
 
+    void printSettings() const {
+        std::cout << "Color Format: " << colorFormat << std::endl;
+        std::cout << "Blur Type: " << blurType << std::endl;
+        std::cout << "Sampling Type: " << samplingType << std::endl;
+        std::cout << "Transformation Type: " << transformationType << std::endl;
+        std::cout << "Quantization Factor: " << QuantizationFactor << std::endl;
+        std::cout << "Tile Width: " << tileWidth << std::endl;
+        std::cout << "Tile Height: " << tileHeight << std::endl;
+        std::cout << "Encoding Type: " << encodingType << std::endl;
+        std::cout << "Encoding Window Size: " << encodingWindowSize << std::endl;
+    }
 };
 
 
@@ -166,6 +184,9 @@ void unflattenZigZag(Block &block);
 
 float PSNR(ImageBase & im1, ImageBase & im2);
 
+float PSNRptr(ImageBase & im1, ImageBase * im2);
 
 
 long getFileSize(const std::string& filePath);
+
+void readSettings(const std::string& filename, CompressionSettings& settings);

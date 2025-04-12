@@ -1,4 +1,5 @@
 #include "ImageBase.h"
+#include "LZ77.h"
 #include "Utils.h"
 #include "FlexibleCompression.h"
 #include "JPEG.h"
@@ -20,12 +21,15 @@
 #include "ImGuiFileDialog.h"
 
 #include <chrono>
+#include <fstream>
+#include <iomanip>
+
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-const int SCREEN_WIDTH = 1920;
-const int SCREEN_HEIGHT = 1080;
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
 
 ImageBase imgOriginal;
 ImageBase * imgDecompressed;
@@ -63,35 +67,41 @@ std::chrono::duration<double> decompressionTime;
 CompressionSettings customCompressionSettings;
 
 
-void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Renderer * renderer, SDL_Texture ** texture){ //pointeur vers un pointeur
-    
+
+void ConvertPNGToPPM(const std::string& pngFilePath, std::string& ppmFilePath, int& width, int& height) {
     int channels;
-    //si l'image est en .png on convertit en ppm
-    if (filePathName.substr(filePathName.find_last_of(".") + 1) == "png") {
-        unsigned char * imgData = stbi_load(filePathName.c_str(), &width, &height, &channels, 3);
-        if (!imgData) {
-            std::cerr << "impossible de charger l'image " << filePathName << std::endl;
-            return;
-        }
-
-        std::string ppmFilePathName = filePathName.substr(0, filePathName.find_last_of(".")) + ".ppm";
-        FILE *ppmFile = fopen(ppmFilePathName.c_str(), "wb");
-        if (!ppmFile) {
-            std::cerr << "conversion en ppm impossible " << ppmFilePathName << std::endl;
-            stbi_image_free(imgData);
-            return;
-        }
-
-        fprintf(ppmFile, "P6\n%d %d\n255\n", width, height);
-        fwrite(imgData, sizeof(unsigned char), width * height * 3, ppmFile);
-        fclose(ppmFile);
-
-        stbi_image_free(imgData);
-        filePathName = ppmFilePathName; //on met le chemin a jour vers l'image ppm 
+    unsigned char* imgData = stbi_load(pngFilePath.c_str(), &width, &height, &channels, 3);
+    if (!imgData) {
+        std::cerr << "Impossible de charger l'image " << pngFilePath << std::endl;
+        return;
     }
 
-    
-    unsigned char * imgPPMData = stbi_load(filePathName.data(), &width, &height, &channels, 3);
+    ppmFilePath = pngFilePath.substr(0, pngFilePath.find_last_of(".")) + ".ppm";
+    FILE* ppmFile = fopen(ppmFilePath.c_str(), "wb");
+    if (!ppmFile) {
+        std::cerr << "Conversion en ppm impossible " << ppmFilePath << std::endl;
+        stbi_image_free(imgData);
+        return;
+    }
+
+    fprintf(ppmFile, "P6\n%d %d\n255\n", width, height);
+    fwrite(imgData, sizeof(unsigned char), width * height * 3, ppmFile);
+    fclose(ppmFile);
+
+    stbi_image_free(imgData);
+}
+
+void LoadTexture(std::string& filePathName, int& width, int& height, SDL_Renderer* renderer, SDL_Texture** texture) { // pointeur vers un pointeur
+    int channels;
+
+    // Si l'image est en .png, on convertit en ppm
+    if (filePathName.substr(filePathName.find_last_of(".") + 1) == "png") {
+        std::string ppmFilePathName;
+        ConvertPNGToPPM(filePathName, ppmFilePathName, width, height);
+        filePathName = ppmFilePathName; // On met le chemin à jour vers l'image ppm
+    }
+
+    unsigned char* imgPPMData = stbi_load(filePathName.data(), &width, &height, &channels, 3);
 
     *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, width, height);
 
@@ -103,11 +113,9 @@ void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Rend
 
     SDL_UpdateTexture(*texture, NULL, imgPPMData, width * 3);
 
-    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST); //pas de traitement 
-
+    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST); // Pas de traitement
 
     stbi_image_free(imgPPMData);
-
 }
 
 void resetView(){
@@ -154,9 +162,9 @@ void compressJPEGInterface(SDL_Renderer * renderer){
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
     //psnr
-    ImageBase imOut2;
-    imOut2.load(decompressedFilePathName.data());
-    psnr = PSNR(imgOriginal, imOut2);
+    //ImageBase imOut2;
+    //imOut2.load(decompressedFilePathName.data());
+    psnr = PSNRptr(imgOriginal, imgDecompressed);
 
     decompressedInitialized = true;
 }
@@ -205,12 +213,6 @@ void compressFlexInterface(SDL_Renderer * renderer){
     //compression
     auto startTime = std::chrono::high_resolution_clock::now();
 
-    /* customCompressionSettings.colorFormat = YCBCRFORMAT;
-    customCompressionSettings.blurType = GAUSSIANBLUR;
-    customCompressionSettings.samplingType = BILENARSAMPLING;
-    customCompressionSettings.transformationType = DCTTRANSFORM;
-    customCompressionSettings.QuantizationFactor = 50; */
-
     compressionFlex(originalFilePathName.data(), compressedFilePathName.data(), imgOriginal, customCompressionSettings);
 
     compressionTime = std::chrono::high_resolution_clock::now() - startTime;
@@ -229,12 +231,134 @@ void compressFlexInterface(SDL_Renderer * renderer){
 
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
-    ImageBase imOut2;
-    imOut2.load(decompressedFilePathName.data());
+    //ImageBase imOut2;
+    //imOut2.load(decompressedFilePathName.data());
 
-    psnr = PSNR(imgOriginal, imOut2);
+    //psnr = PSNR(imgOriginal, imOut2);
+
+    psnr = PSNRptr(imgOriginal, imgDecompressed);
 
     decompressedInitialized = true;
+}
+
+
+void logResultsToCSV(const std::string& filename, const std::string& image,
+                     const std::string& transform, const std::string& encoding,
+                     int quantFactor, int windowSize,
+                     int sizeOriginal, int sizeCompressed,
+                     double tauxCompression, double psnr) {
+    
+    std::ofstream file;
+    bool fileExists = std::ifstream(filename).good();
+
+    file.open(filename, std::ios::app);
+
+    if (!fileExists) {
+        file << "Image,Transformation,Encoding,QuantizationFactor,WindowSize,"
+             << "OriginalSize,CompressedSize,CompressionRate,PSNR\n";
+    }
+
+    file << image << ","
+         << transform << ","
+         << encoding << ","
+         << quantFactor << ","
+         << windowSize << ","
+         << sizeOriginal << ","
+         << sizeCompressed << ","
+         << std::fixed << std::setprecision(2) << tauxCompression << ","
+         << std::fixed << std::setprecision(2) << psnr << "\n";
+
+    file.close();
+}
+
+
+void launchComparator(){
+
+        std::vector<std::string> originalFilePathNames = {
+         "./img/cygne4k.png","./img/town.png", "./img/wall.png",
+        "./img/forest4K.png", "./img/wood4K.png",
+        "./img/bridge4K.ppm", "./img/sample4k.ppm", "./img/ice4K.ppm",
+        "./img/cat4K.ppm", "./img/4Kmyrtille.ppm"
+    };
+
+    std::vector<TransformationType> transformationTypes = {DCTTRANSFORM, DWTTRANSFORM};
+    std::vector<EncodingType> encodingTypes = {RLE, LZ77};
+    std::vector<int> tileSizes = {120, 120, 240, 240, 480, 270, 1920, 1080};
+    std::vector<int> quantizationFactors = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
+    std::vector<int> windowSizes = {5, 10, 20, 100, 500};
+
+    CompressionSettings settings;
+
+    for (auto& filePath : originalFilePathNames) {
+        int width, height;
+        if (filePath.substr(filePath.find_last_of(".") + 1) == "png") {
+            std::string ppmFilePathName;
+            ConvertPNGToPPM(filePath, ppmFilePathName, width, height);
+            filePath = ppmFilePathName; // On met le chemin à jour vers l'image ppm
+        }
+
+        imgOriginal.load(filePath.data());
+
+        for (const auto& transform : transformationTypes) {
+            bool useTileSize = (transform == DWTTRANSFORM);
+
+            int tileLoopEnd = useTileSize ? tileSizes.size() : 2;
+            for (int i = 0; i < tileLoopEnd; i += 2) {
+                int tileWidth = useTileSize ? tileSizes[i] : 0;
+                int tileHeight = useTileSize ? tileSizes[i + 1] : 0;
+
+                for (const auto& encoding : encodingTypes) {
+                    bool useWindowSize = (encoding == LZ77);
+                    const std::vector<int>& windows = useWindowSize ? windowSizes : std::vector<int>{0};
+
+                    for (const auto& windowSize : windows) {
+                        for (const auto& quantFactor : quantizationFactors) {
+                            
+                            settings.colorFormat = YCBCRFORMAT;
+                            settings.blurType = BILATERALBLUR;
+                            settings.samplingType = BILENARSAMPLING;
+                            settings.transformationType = transform;
+                            settings.QuantizationFactor = quantFactor;
+                            settings.tileWidth = tileWidth;
+                            settings.tileHeight = tileHeight;
+                            settings.encodingType = encoding;
+                            settings.encodingWindowSize = windowSize;
+                            
+                            
+
+                            
+                            compressionFlex(filePath.data(), compressedFilePathName.data(), imgOriginal, settings);
+
+                            sizeOriginal = getFileSize(filePath);
+                            sizeCompressed = getFileSize(compressedFilePathName);
+                            tauxCompression = (double)sizeOriginal / (double)sizeCompressed;
+
+                            decompressionFlex(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, settings);
+                            //ImageBase imOut2;
+                            //imOut2.load(decompressedFilePathName.data());
+                            //psnr = PSNRptr(imgOriginal, imgDecompressed);
+                            psnr = PSNRptr(imgOriginal, imgDecompressed);
+
+                            logResultsToCSV(
+                                "results.csv",
+                                filePath,
+                                transform == DCTTRANSFORM ? "DCT" : "DWT",
+                                encoding == RLE ? "RLE" : "LZ77",
+                                quantFactor,
+                                windowSize,
+                                sizeOriginal,
+                                sizeCompressed,
+                                tauxCompression,
+                                psnr
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
 }
 
 int main(int argc, char **argv)
@@ -242,8 +366,12 @@ int main(int argc, char **argv)
     customCompressionSettings.colorFormat = YCBCRFORMAT;
     customCompressionSettings.blurType = GAUSSIANBLUR;
     customCompressionSettings.samplingType = BILENARSAMPLING;
-    customCompressionSettings.transformationType = DCTTRANSFORM;
+    customCompressionSettings.transformationType = DWTTRANSFORM;
     customCompressionSettings.QuantizationFactor = 100;
+    customCompressionSettings.tileHeight = 120;
+    customCompressionSettings.tileWidth = 120;
+    customCompressionSettings.encodingType = LZ77;
+    customCompressionSettings.encodingWindowSize = 200;
 
     namespace fs = std::filesystem;
 
@@ -362,6 +490,9 @@ int main(int argc, char **argv)
             ImGui::TreePop();
         }
         
+        if(ImGui::Button("Launch tests")){
+                launchComparator();
+            }
 
         if(originalInitialized){
             ImGui::Text("Chemin vers l'image : %s", originalFilePathName.c_str());
@@ -387,7 +518,12 @@ int main(int argc, char **argv)
                 ImGui::InputInt("Tile Width", &customCompressionSettings.tileWidth);
                 ImGui::InputInt("Tile Height", &customCompressionSettings.tileHeight);
             }
-            ImGui::SliderInt("Qualité", &customCompressionSettings.QuantizationFactor, 1, 100);
+            ImGui::SliderInt("Qualité (quantification)", &customCompressionSettings.QuantizationFactor, 1, 100);
+            ImGui::Combo("Type d'encodage", (int *)&customCompressionSettings.encodingType, "RLE\0LZ77\0");
+
+            if(customCompressionSettings.encodingType == LZ77){
+                ImGui::InputInt("Taille fenetre encodage", &customCompressionSettings.encodingWindowSize);
+            }
 
         
         }
@@ -396,13 +532,13 @@ int main(int argc, char **argv)
 
 
         if(decompressedInitialized){
-            ImGui::Text("Taux de compression : %f", tauxCompression);
-            ImGui::Text("PSNR : %f", psnr);
+            ImGui::Text("Taux de compression : %.2f", tauxCompression);
+            ImGui::Text("PSNR : %.2f", psnr);
 
             if(ImGui::TreeNode("More compression info")){
                 ImGui::Text("De %.0f KB à %.0f KB",  sizeOriginal / 1000.0, sizeCompressed / 1000.0);
-                ImGui::Text("Temps compression : %.3f seconds", compressionTime.count());
-                ImGui::Text("Temps decompression : %.3f seconds", decompressionTime.count());
+                ImGui::Text("Temps compression : %.1f seconds", compressionTime.count());
+                ImGui::Text("Temps decompression : %.1f seconds", decompressionTime.count());
 
                 ImGui::Text("Chemin fichier compressé: %s", compressedFilePathName.c_str());
                 ImGui::Text("Chemin image decompressé: %s", decompressedFilePathName.c_str());
@@ -419,6 +555,7 @@ int main(int argc, char **argv)
             config.path = ".";
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".ppm, .png", config);
         }
+        
         ImGui::SetNextWindowSize(ImVec2(800,500), ImGuiCond_Once);
         if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
             if (ImGuiFileDialog::Instance()->IsOk()) { 
@@ -430,6 +567,45 @@ int main(int argc, char **argv)
                 originalFilePathName = filePathName;
 
                 LoadTexture(originalFilePathName, widthOriginal, heightOriginal, renderer, &textureOriginal);
+
+                originalInitialized = true;
+                decompressedInitialized = false;
+
+                textureDecompressed = nullptr;
+
+
+                resetView();
+                
+                
+                
+            }
+
+            ImGuiFileDialog::Instance()->Close();
+        }
+
+        if (ImGui::Button("Choisir fichier")) {
+            IGFD::FileDialogConfig config2;
+            config2.path = ".";
+            ImGuiFileDialog::Instance()->OpenDialog("chooseCompressed", "Choose Compressed file", ".img", config2);
+        }
+        ImGui::SetNextWindowSize(ImVec2(800,500), ImGuiCond_Once);
+        if (ImGuiFileDialog::Instance()->Display("chooseCompressed")) {
+            if (ImGuiFileDialog::Instance()->IsOk()) { 
+                std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+                std::cout << filePath << std::endl;
+                std::cout << filePathName << std::endl;
+
+                ImageBase imOut;
+                decompressionFlex(filePathName.data(), decompressedFilePathName.data(), imgDecompressed, customCompressionSettings);
+    
+                std::cout << "finished decompression" << std::endl;
+                originalFilePathName = decompressedFilePathName;
+
+                widthOriginal = imgDecompressed->getWidth();
+                heightOriginal = imgDecompressed->getHeight();
+
+                LoadTexture(decompressedFilePathName, widthOriginal, heightOriginal, renderer, &textureOriginal);
 
                 originalInitialized = true;
                 decompressedInitialized = false;
