@@ -184,6 +184,7 @@ void unflattenZigZag(Block &block);
 
 float PSNR(ImageBase & im1, ImageBase & im2);
 
+float PSNRptr(ImageBase & im1, ImageBase * im2);
 
 
 long getFileSize(const std::string& filePath);

@@ -67,35 +67,41 @@ std::chrono::duration<double> decompressionTime;
 CompressionSettings customCompressionSettings;
 
 
-void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Renderer * renderer, SDL_Texture ** texture){ //pointeur vers un pointeur
-    
+
+void ConvertPNGToPPM(const std::string& pngFilePath, std::string& ppmFilePath, int& width, int& height) {
     int channels;
-    //si l'image est en .png on convertit en ppm
-    if (filePathName.substr(filePathName.find_last_of(".") + 1) == "png") {
-        unsigned char * imgData = stbi_load(filePathName.c_str(), &width, &height, &channels, 3);
-        if (!imgData) {
-            std::cerr << "impossible de charger l'image " << filePathName << std::endl;
-            return;
-        }
-
-        std::string ppmFilePathName = filePathName.substr(0, filePathName.find_last_of(".")) + ".ppm";
-        FILE *ppmFile = fopen(ppmFilePathName.c_str(), "wb");
-        if (!ppmFile) {
-            std::cerr << "conversion en ppm impossible " << ppmFilePathName << std::endl;
-            stbi_image_free(imgData);
-            return;
-        }
-
-        fprintf(ppmFile, "P6\n%d %d\n255\n", width, height);
-        fwrite(imgData, sizeof(unsigned char), width * height * 3, ppmFile);
-        fclose(ppmFile);
-
-        stbi_image_free(imgData);
-        filePathName = ppmFilePathName; //on met le chemin a jour vers l'image ppm 
+    unsigned char* imgData = stbi_load(pngFilePath.c_str(), &width, &height, &channels, 3);
+    if (!imgData) {
+        std::cerr << "Impossible de charger l'image " << pngFilePath << std::endl;
+        return;
     }
 
-    
-    unsigned char * imgPPMData = stbi_load(filePathName.data(), &width, &height, &channels, 3);
+    ppmFilePath = pngFilePath.substr(0, pngFilePath.find_last_of(".")) + ".ppm";
+    FILE* ppmFile = fopen(ppmFilePath.c_str(), "wb");
+    if (!ppmFile) {
+        std::cerr << "Conversion en ppm impossible " << ppmFilePath << std::endl;
+        stbi_image_free(imgData);
+        return;
+    }
+
+    fprintf(ppmFile, "P6\n%d %d\n255\n", width, height);
+    fwrite(imgData, sizeof(unsigned char), width * height * 3, ppmFile);
+    fclose(ppmFile);
+
+    stbi_image_free(imgData);
+}
+
+void LoadTexture(std::string& filePathName, int& width, int& height, SDL_Renderer* renderer, SDL_Texture** texture) { // pointeur vers un pointeur
+    int channels;
+
+    // Si l'image est en .png, on convertit en ppm
+    if (filePathName.substr(filePathName.find_last_of(".") + 1) == "png") {
+        std::string ppmFilePathName;
+        ConvertPNGToPPM(filePathName, ppmFilePathName, width, height);
+        filePathName = ppmFilePathName; // On met le chemin à jour vers l'image ppm
+    }
+
+    unsigned char* imgPPMData = stbi_load(filePathName.data(), &width, &height, &channels, 3);
 
     *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, width, height);
 
@@ -107,11 +113,9 @@ void LoadTexture(std::string & filePathName, int & width, int & height, SDL_Rend
 
     SDL_UpdateTexture(*texture, NULL, imgPPMData, width * 3);
 
-    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST); //pas de traitement 
-
+    SDL_SetTextureScaleMode(*texture, SDL_SCALEMODE_NEAREST); // Pas de traitement
 
     stbi_image_free(imgPPMData);
-
 }
 
 void resetView(){
@@ -158,9 +162,9 @@ void compressJPEGInterface(SDL_Renderer * renderer){
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
     //psnr
-    ImageBase imOut2;
-    imOut2.load(decompressedFilePathName.data());
-    psnr = PSNR(imgOriginal, imOut2);
+    //ImageBase imOut2;
+    //imOut2.load(decompressedFilePathName.data());
+    psnr = PSNRptr(imgOriginal, imgDecompressed);
 
     decompressedInitialized = true;
 }
@@ -227,10 +231,12 @@ void compressFlexInterface(SDL_Renderer * renderer){
 
     LoadTexture(decompressedFilePathName, widthDecompressed, heightDecompressed, renderer, &textureDecompressed);
 
-    ImageBase imOut2;
-    imOut2.load(decompressedFilePathName.data());
+    //ImageBase imOut2;
+    //imOut2.load(decompressedFilePathName.data());
 
-    psnr = PSNR(imgOriginal, imOut2);
+    //psnr = PSNR(imgOriginal, imOut2);
+
+    psnr = PSNRptr(imgOriginal, imgDecompressed);
 
     decompressedInitialized = true;
 }
@@ -269,6 +275,8 @@ void logResultsToCSV(const std::string& filename, const std::string& image,
 void launchComparator(){
 
         std::vector<std::string> originalFilePathNames = {
+         "./img/cygne4k.png","./img/town.png", "./img/wall.png",
+        "./img/forest4K.png", "./img/wood4K.png",
         "./img/bridge4K.ppm", "./img/sample4k.ppm", "./img/ice4K.ppm",
         "./img/cat4K.ppm", "./img/4Kmyrtille.ppm"
     };
@@ -282,6 +290,15 @@ void launchComparator(){
     CompressionSettings settings;
 
     for (auto& filePath : originalFilePathNames) {
+        int width, height;
+        if (filePath.substr(filePath.find_last_of(".") + 1) == "png") {
+            std::string ppmFilePathName;
+            ConvertPNGToPPM(filePath, ppmFilePathName, width, height);
+            filePath = ppmFilePathName; // On met le chemin à jour vers l'image ppm
+        }
+
+        imgOriginal.load(filePath.data());
+
         for (const auto& transform : transformationTypes) {
             bool useTileSize = (transform == DWTTRANSFORM);
 
@@ -309,7 +326,7 @@ void launchComparator(){
                             
                             
 
-                            imgOriginal.load(filePath.data());
+                            
                             compressionFlex(filePath.data(), compressedFilePathName.data(), imgOriginal, settings);
 
                             sizeOriginal = getFileSize(filePath);
@@ -317,9 +334,10 @@ void launchComparator(){
                             tauxCompression = (double)sizeOriginal / (double)sizeCompressed;
 
                             decompressionFlex(compressedFilePathName.data(), decompressedFilePathName.data(), imgDecompressed, settings);
-                            ImageBase imOut2;
-                            imOut2.load(decompressedFilePathName.data());
-                            psnr = PSNR(imgOriginal, imOut2);
+                            //ImageBase imOut2;
+                            //imOut2.load(decompressedFilePathName.data());
+                            //psnr = PSNRptr(imgOriginal, imgDecompressed);
+                            psnr = PSNRptr(imgOriginal, imgDecompressed);
 
                             logResultsToCSV(
                                 "results.csv",
@@ -579,13 +597,13 @@ int main(int argc, char **argv)
                 std::cout << filePathName << std::endl;
 
                 ImageBase imOut;
-                decompressionFlex(filePathName.data(), decompressedFilePathName.data(), &imOut, customCompressionSettings);
+                decompressionFlex(filePathName.data(), decompressedFilePathName.data(), imgDecompressed, customCompressionSettings);
     
                 std::cout << "finished decompression" << std::endl;
                 originalFilePathName = decompressedFilePathName;
 
-                widthOriginal = imOut.getWidth();
-                heightOriginal = imOut.getHeight();
+                widthOriginal = imgDecompressed->getWidth();
+                heightOriginal = imgDecompressed->getHeight();
 
                 LoadTexture(decompressedFilePathName, widthOriginal, heightOriginal, renderer, &textureOriginal);
 

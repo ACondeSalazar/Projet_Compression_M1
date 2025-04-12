@@ -483,7 +483,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
 
 }
 
-void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase *imOut, CompressionSettings & settings){
+void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase*& imOut, CompressionSettings & settings){
     
     std::string outFileName = cNomImgIn;
 
@@ -872,7 +872,7 @@ void decompressionFlex(const char *cNomImgIn, const char *cNomImgOut, ImageBase 
     //printf("Saving decompressed image\n");
     std::string cNomImgOutStr = cNomImgOut;
     (*imOut).save(cNomImgOutStr.data());
-    
+    (*imOut)[3][3 + 0] = 0;
 
     printf("Decompression finished\n");
 
