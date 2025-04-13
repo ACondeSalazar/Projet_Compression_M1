@@ -28,8 +28,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 600;
+const int SCREEN_WIDTH = 1280;
+const int SCREEN_HEIGHT = 720;
 
 ImageBase imgOriginal;
 ImageBase * imgDecompressed;
@@ -274,18 +274,21 @@ void logResultsToCSV(const std::string& filename, const std::string& image,
 
 void launchComparator(){
 
-        std::vector<std::string> originalFilePathNames = {
-         "./img/cygne4k.png","./img/town.png", "./img/wall.png",
-        "./img/forest4K.png", "./img/wood4K.png",
-        "./img/bridge4K.ppm", "./img/sample4k.ppm", "./img/ice4K.ppm",
-        "./img/cat4K.ppm", "./img/4Kmyrtille.ppm"
-    };
+    std::vector<std::string> originalFilePathNames = { };
+
+    for (const auto& entry : std::filesystem::directory_iterator("./img/testsuit")) {
+        if (entry.is_regular_file() && entry.path().extension() == ".png") {
+            originalFilePathNames.push_back(entry.path().string());
+        }
+    }
+
+
 
     std::vector<TransformationType> transformationTypes = {DCTTRANSFORM, DWTTRANSFORM};
     std::vector<EncodingType> encodingTypes = {RLE, LZ77};
-    std::vector<int> tileSizes = {120, 120, 240, 240, 480, 270, 1920, 1080};
-    std::vector<int> quantizationFactors = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
-    std::vector<int> windowSizes = {5, 10, 20, 100, 500};
+    std::vector<int> tileSizes = {1920, 1080};
+    std::vector<int> quantizationFactors = { 30, 40, 50, 60, 70, 80, 90, 100};
+    std::vector<int> windowSizes = { 10};
 
     CompressionSettings settings;
 
@@ -294,7 +297,7 @@ void launchComparator(){
         if (filePath.substr(filePath.find_last_of(".") + 1) == "png") {
             std::string ppmFilePathName;
             ConvertPNGToPPM(filePath, ppmFilePathName, width, height);
-            filePath = ppmFilePathName; // On met le chemin à jour vers l'image ppm
+            filePath = ppmFilePathName; 
         }
 
         imgOriginal.load(filePath.data());
@@ -338,6 +341,9 @@ void launchComparator(){
                             //imOut2.load(decompressedFilePathName.data());
                             //psnr = PSNRptr(imgOriginal, imgDecompressed);
                             psnr = PSNRptr(imgOriginal, imgDecompressed);
+                            
+                            delete imgDecompressed;
+                            imgDecompressed = nullptr;
 
                             logResultsToCSV(
                                 "results.csv",
@@ -356,6 +362,7 @@ void launchComparator(){
                 }
             }
         }
+
     }
 
 
