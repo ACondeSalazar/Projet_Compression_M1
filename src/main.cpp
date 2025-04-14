@@ -1,5 +1,6 @@
 #include "ImageBase.h"
 #include "LZ77.h"
+#include "SDL3/SDL_video.h"
 #include "Utils.h"
 #include "FlexibleCompression.h"
 #include "JPEG.h"
@@ -378,7 +379,7 @@ int main(int argc, char **argv)
     customCompressionSettings.tileHeight = 120;
     customCompressionSettings.tileWidth = 120;
     customCompressionSettings.encodingType = LZ77;
-    customCompressionSettings.encodingWindowSize = 200;
+    customCompressionSettings.encodingWindowSize = 10;
 
     namespace fs = std::filesystem;
 
@@ -404,6 +405,8 @@ int main(int argc, char **argv)
         SDL_Quit();
         return -1;
     }
+
+    SDL_SetWindowResizable(window, true);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
     if (renderer == NULL) {
@@ -529,7 +532,7 @@ int main(int argc, char **argv)
             ImGui::Combo("Type d'encodage", (int *)&customCompressionSettings.encodingType, "RLE\0LZ77\0");
 
             if(customCompressionSettings.encodingType == LZ77){
-                ImGui::InputInt("Taille fenetre encodage", &customCompressionSettings.encodingWindowSize);
+                ImGui::SliderInt("Taille fenetre encodage", &customCompressionSettings.encodingWindowSize, 1, 200);
             }
 
         

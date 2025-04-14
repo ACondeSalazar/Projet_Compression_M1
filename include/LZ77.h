@@ -9,13 +9,13 @@
 
 
 struct LZ77Triplet {
-    uint16_t offset;
-    uint16_t length;
+    uint8_t offset;
+    uint8_t length;
     int16_t next;
 
-    LZ77Triplet(uint16_t o, uint16_t l, int n) : offset(o), length(l), next(n) {}
+    LZ77Triplet(uint8_t o, uint8_t l, int n) : offset(o), length(l), next(n) {}
 
-    LZ77Triplet(std::tuple<uint16_t, uint16_t, int> triplet) {
+    LZ77Triplet(std::tuple<uint8_t, uint8_t, int16_t> triplet) {
         offset = std::get<0>(triplet);
         length = std::get<1>(triplet);
         next = std::get<2>(triplet);
