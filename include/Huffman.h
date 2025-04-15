@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 #include <unordered_map>
 #include <utility>
@@ -92,9 +93,9 @@ void readHuffmanEncoded(const string& filename,
 
 struct huffmanCodeSingleLZ77{
 
-    tuple<int,int,int> triplet; //offset, length, next
+    tuple<uint8_t,uint8_t,int16_t> triplet; //offset, length, next
     int code; //le codage 
-    int length; //la longueur du code
+    uint8_t length; //la longueur du code
 
 };
 

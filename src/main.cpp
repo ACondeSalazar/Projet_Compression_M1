@@ -25,6 +25,8 @@
 #include <fstream>
 #include <iomanip>
 
+#include <thread>
+
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -288,8 +290,8 @@ void launchComparator(){
     std::vector<TransformationType> transformationTypes = {DCTTRANSFORM, DWTTRANSFORM};
     std::vector<EncodingType> encodingTypes = {RLE, LZ77};
     std::vector<int> tileSizes = {1920, 1080};
-    std::vector<int> quantizationFactors = { 30, 40, 50, 60, 70, 80, 90, 100};
-    std::vector<int> windowSizes = { 10};
+    std::vector<int> quantizationFactors = { 30, 40, 50, 60, 80, 100};
+    std::vector<int> windowSizes = { 18, 25};
 
     CompressionSettings settings;
 
@@ -376,10 +378,10 @@ int main(int argc, char **argv)
     customCompressionSettings.samplingType = BILENARSAMPLING;
     customCompressionSettings.transformationType = DWTTRANSFORM;
     customCompressionSettings.QuantizationFactor = 100;
-    customCompressionSettings.tileHeight = 120;
-    customCompressionSettings.tileWidth = 120;
+    customCompressionSettings.tileHeight = 1080;
+    customCompressionSettings.tileWidth = 1920;
     customCompressionSettings.encodingType = LZ77;
-    customCompressionSettings.encodingWindowSize = 10;
+    customCompressionSettings.encodingWindowSize = 18;
 
     namespace fs = std::filesystem;
 
@@ -506,17 +508,25 @@ int main(int argc, char **argv)
 
         if(originalInitialized){
             ImGui::Text("Chemin vers l'image : %s", originalFilePathName.c_str());
-            ImGui::Text("Taille Image : %d x %d", widthOriginal, heightOriginal);
+            ImGui::Text("Dimensions Image : %d x %d", widthOriginal, heightOriginal);
             
-            if(ImGui::Button("Compression JPEG like")){
-                compressJPEGInterface(renderer);
+            if(ImGui::Button("Charger paramètres méthode DCT")){
+                //compressJPEGInterface(renderer);
+                customCompressionSettings.transformationType = DCTTRANSFORM;
+                customCompressionSettings.encodingType = RLE;
             }
 
-            if(ImGui::Button("Compression JPEG2000 like")){
-                compressJPEG2000Interface(renderer);
+            if(ImGui::Button("Charger paramètres méthode DWT")){
+                //compressJPEG2000Interface(renderer);
+                customCompressionSettings.transformationType = DWTTRANSFORM;
+                customCompressionSettings.encodingType = LZ77;
+                customCompressionSettings.tileWidth = 1920;
+                customCompressionSettings.tileHeight = 1080;
+                customCompressionSettings.encodingWindowSize = 18;
             }
 
-            if(ImGui::Button("Compression custom")){
+
+            if (ImGui::Button("Lancer compression")) {
                 compressFlexInterface(renderer);
             }
 
@@ -525,8 +535,17 @@ int main(int argc, char **argv)
             ImGui::Combo("Type sampling", (int *)&customCompressionSettings.samplingType, "Normal\0Bilinear\0Bicubic (implementer)\0Lanczos(implémenter)\0");
             ImGui::Combo("Type transformation", (int *)&customCompressionSettings.transformationType, "DCT\0DWT\0INTDCT(implementer?)\0DCTIV(implementer?)\0");
             if (customCompressionSettings.transformationType == DWTTRANSFORM) {
-                ImGui::InputInt("Tile Width", &customCompressionSettings.tileWidth);
-                ImGui::InputInt("Tile Height", &customCompressionSettings.tileHeight);
+                const char* tileSizes[] = { "120x120", "1920x1080" };
+                static int currentTileSize = 1; // 0 for 120x120, 1 for 1920x1080
+                if (ImGui::Combo("Tile Size", &currentTileSize, tileSizes, IM_ARRAYSIZE(tileSizes))) {
+                    if (currentTileSize == 0) {
+                        customCompressionSettings.tileWidth = 120;
+                        customCompressionSettings.tileHeight = 120;
+                    } else if (currentTileSize == 1) {
+                        customCompressionSettings.tileWidth = 1920;
+                        customCompressionSettings.tileHeight = 1080;
+                    }
+                }
             }
             ImGui::SliderInt("Qualité (quantification)", &customCompressionSettings.QuantizationFactor, 1, 100);
             ImGui::Combo("Type d'encodage", (int *)&customCompressionSettings.encodingType, "RLE\0LZ77\0");
@@ -545,10 +564,10 @@ int main(int argc, char **argv)
             ImGui::Text("Taux de compression : %.2f", tauxCompression);
             ImGui::Text("PSNR : %.2f", psnr);
 
-            if(ImGui::TreeNode("More compression info")){
+            if(ImGui::TreeNode("Infos compression")){
                 ImGui::Text("De %.0f KB à %.0f KB",  sizeOriginal / 1000.0, sizeCompressed / 1000.0);
-                ImGui::Text("Temps compression : %.1f seconds", compressionTime.count());
-                ImGui::Text("Temps decompression : %.1f seconds", decompressionTime.count());
+                ImGui::Text("Temps compression : %.1f secondes", compressionTime.count());
+                ImGui::Text("Temps decompression : %.1f secondes", decompressionTime.count());
 
                 ImGui::Text("Chemin fichier compressé: %s", compressedFilePathName.c_str());
                 ImGui::Text("Chemin image decompressé: %s", decompressedFilePathName.c_str());
@@ -577,6 +596,8 @@ int main(int argc, char **argv)
                 originalFilePathName = filePathName;
 
                 LoadTexture(originalFilePathName, widthOriginal, heightOriginal, renderer, &textureOriginal);
+                
+                sizeOriginal = getFileSize(originalFilePathName);
 
                 originalInitialized = true;
                 decompressedInitialized = false;

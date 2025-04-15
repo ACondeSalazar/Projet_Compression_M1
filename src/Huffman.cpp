@@ -480,9 +480,9 @@ void writeHuffmanEncodedLZ77(vector<LZ77Triplet>& LZ77Data,
         outFile.write(reinterpret_cast<const char*>(&entry.length), sizeof(entry.length));
     }
     
-    //on ecrit le nombre de RLE
-    int numRLE = static_cast<int>(LZ77Data.size());
-    outFile.write(reinterpret_cast<const char*>(&numRLE), sizeof(numRLE));
+    //on ecrit le nombre de triplet
+    int numTriplet = static_cast<int>(LZ77Data.size());
+    outFile.write(reinterpret_cast<const char*>(&numTriplet), sizeof(numTriplet));
 
     //hashmap LZ77{offset, length, next}-> {code, longueur code} 
     unordered_map<tuple<int,int,int>, pair<int, int>, triplet_hash> codeMap; //bien plus rapide pour la lecture après

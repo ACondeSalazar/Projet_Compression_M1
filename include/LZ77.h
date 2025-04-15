@@ -9,9 +9,9 @@
 
 
 struct LZ77Triplet {
-    uint8_t offset;
-    uint8_t length;
-    int16_t next;
+    uint8_t offset = 0;
+    uint8_t length = 0;
+    int16_t next = 0;
 
     LZ77Triplet(uint8_t o, uint8_t l, int n) : offset(o), length(l), next(n) {}
 

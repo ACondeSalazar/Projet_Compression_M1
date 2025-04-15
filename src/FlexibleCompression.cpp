@@ -219,6 +219,11 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             blocksLuminanceRLE.insert(blocksLuminanceRLE.end(),RLETile.begin(),RLETile.end());
 
             flatDataY.insert(flatDataY.end(), flatTile.begin(), flatTile.end());
+
+            for (int i = 0; i < std::min(20, static_cast<int>(flatDataY.size())); i++) {
+                std::cout << flatDataY[i]  << ", ";
+            }
+            std::cout  << std::endl;
             //std::vector<LZ77Triplet> LZ77Tile;
             //LZ77Compression(flatTile,LZ77Tile, settings.encodingWindowSize);
             //blocksLuminanceLZ77.insert(blocksLuminanceLZ77.end(),LZ77Tile.begin(),LZ77Tile.end());
@@ -366,7 +371,7 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             std::cout << "blocksLuminance is empty." << std::endl;
         } */
 
-    //##########################Encodage RLE#############################
+        //##########################Encodage #############################
 
         std::vector<int> flatDataLuminance;
         std::vector<int> flatDataColor1;
@@ -377,6 +382,10 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
             for (Block &block : blocksLuminance) {
                 flatDataLuminance.insert(flatDataLuminance.end(), block.flatDctMatrix.begin(), block.flatDctMatrix.end());
             }
+            for (int i = 0; i < std::min(50, static_cast<int>(flatDataLuminance.size())); i++) {
+                std::cout << flatDataLuminance[i] << ", "<< std::endl;
+            }
+
             LZ77Compression(flatDataLuminance,blocksLuminanceLZ77, settings.encodingWindowSize);
 
             for (Block &block : blocksColor1) {
@@ -447,7 +456,13 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
         HuffmanEncoding(allBlocksRLE, codeTable);
         //std::cout << "Table size : " << codeTable.size() << std::endl;
 
-        
+        int maxLength = 0;
+        for (const auto& code : codeTable) {
+            if (code.length > maxLength) {
+                maxLength = code.length;
+            }
+        }
+        std::cout << "Max Huffman code length: " << maxLength << std::endl;
 
         //on ecrit le fichier huffman encodé
         writeHuffmanEncoded(allBlocksRLE, codeTable,
@@ -461,18 +476,30 @@ void compressionFlex(char *cNomImgLue, char *cNomImgOut, ImageBase &imIn, Compre
         allBlocksLZ77.insert(allBlocksLZ77.end(), blocksLuminanceLZ77.begin(), blocksLuminanceLZ77.end());
         allBlocksLZ77.insert(allBlocksLZ77.end(), blocksColor1LZ77.begin(), blocksColor1LZ77.end());
         allBlocksLZ77.insert(allBlocksLZ77.end(), blocksColor2LZ77.begin(), blocksColor2LZ77.end());
+        
+        for (int i = 0; i < std::min(20, static_cast<int>(allBlocksLZ77.size())); i++) {
+            const auto& triplet = allBlocksLZ77[i];
+            std::cout << "Triplet " << i + 1 << ":(" << (int)triplet.offset << ", " << (int)triplet.length<< ", " << triplet.next << ")" <<std::endl;
+        }
 
         std::vector<huffmanCodeSingleLZ77> codeTableLZ77;
 
         HuffmanEncodingLZ77(allBlocksLZ77, codeTableLZ77);
         //std::cout << "Table size : " << codeTableLZ77.size() << std::endl;
 
-        double totalLength = 0;
+        int maxLength = 0;
+        int maxCode = 0;
         for (const auto& code : codeTableLZ77) {
-            totalLength += code.length;
+            if (code.length > maxLength) {
+                maxLength = code.length;
+            }
+            if (code.code > maxCode) {
+                maxCode = code.code;
+            }
         }
-        double meanLength = totalLength / codeTableLZ77.size();
-        //std::cout << "Mean length of Huffman codes: " << meanLength << std::endl;
+        std::cout << "Max Huffman code length: " << maxLength << std::endl;
+        std::cout << "Max Huffman code value: " << maxCode << std::endl;
+
 
         writeHuffmanEncodedLZ77(allBlocksLZ77, codeTableLZ77,
                 imIn.getWidth(), imIn.getHeight(), downSampledColor1.getWidth(),downSampledColor2.getHeight(),

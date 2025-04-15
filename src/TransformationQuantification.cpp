@@ -303,8 +303,27 @@ std::pair<int, int> getQuantificationStep(int quantificationFactor) {
 
     float scale = getScaling(quantificationFactor);
 
-    int stepLow = std::max(1, (int)((scale + 50) / 50.0f));
-    int stepHigh = 2* stepLow;
+    int stepLow = 1;
+    int stepHigh = 1;
+
+    if (quantificationFactor >= 100) {
+        stepLow = 2;
+    } else if (quantificationFactor >= 80) {
+        stepLow = 3;
+    } else if (quantificationFactor >= 60) {
+        stepLow = 4;
+    } else if (quantificationFactor >= 50) {
+        stepLow = 6;
+    }else if (quantificationFactor >= 40) {
+        stepLow = 8;
+    } else if (quantificationFactor >= 30) {
+        stepLow = 16;
+    } else {
+        stepLow = 32;
+    }
+
+
+    stepHigh = stepLow;
 
     return {stepLow, stepHigh};
 
@@ -314,18 +333,18 @@ void quantificationuniforme(Tile& tile, int quantizationStepLow, int quantizatio
     int height = tile.data.size();
     int width = tile.data[0].size();
 
-    // On suppose que la sous-bande LL est en haut à gauche (premier quart de la tuile)
+    //ll en haut a gauche
     int llHeight = height / 2;
     int llWidth = width / 2;
 
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
             if (i < llHeight && j < llWidth) {
-                // Sous-bande LL (basse fréquence) : quantification fine
-                tile.data[i][j] = (tile.data[i][j] + quantizationStepLow / 2) / quantizationStepLow;
+                // Sous-bande LL
+                tile.data[i][j] =(int) ((float)tile.data[i][j] + (float)quantizationStepLow / 2) / quantizationStepLow;
             } else {
-                // Sous-bandes LH, HL, HH (haute fréquence) : quantification plus forte
-                tile.data[i][j] = (tile.data[i][j] + quantizationStepHigh / 2) / quantizationStepHigh;
+                // Sous-bandes LH, HL, HH
+                tile.data[i][j] = (int) ((float)tile.data[i][j] +(float) quantizationStepHigh / 2) / quantizationStepHigh;
             }
         }
     }
