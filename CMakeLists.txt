@@ -44,7 +44,7 @@ file(GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES})
 
 target_compile_options(${PROJECT_NAME} PRIVATE
-  -O3 -march=native -flto -funroll-loops -DNDEBUG
+  -O3 -march=native -flto -ffast-math -funroll-loops -DNDEBUG
 )
 
 # -O3 -march=native -flto -funroll-loops -DNDEBUG

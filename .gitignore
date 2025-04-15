@@ -7,3 +7,7 @@ imgui.ini
 CMakeCache.txt
 compile_commands.json
 cmake_install.cmake
+img/testsuit/
+img/processed/
+analysis/
+results.csv
